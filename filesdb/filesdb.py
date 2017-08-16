@@ -118,7 +118,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'print_csv':
-        print_csv(db=args.db, wd=args.wd)
+        print_csv(db=args.db, wd=os.path.expanduser(args.wd))
 
     if args.command == 'test':
         import pytest
