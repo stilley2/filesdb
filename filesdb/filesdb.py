@@ -61,22 +61,20 @@ def add_file(metadata, db="files.db", wd='.', fname=None):
             raise ValueError("filename is reserved")
     conn = _get_conn(db, wd)
     with conn:
-        if conn.execute("select * from sqlite_master where type = 'table' and name = 'filelist'").fetchone() is None:
-            conn.execute("create table filelist (filename text, time timestamp)")
+        conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp)")
         desc = conn.execute("select * from filelist").description
         columns = [d[0] for d in desc]
         for key in metadata.keys():
             if key not in columns:
-                conn.execute("alter table filelist add {} {}".format(key, _gettype(metadata[key])))
+                try:
+                    conn.execute("alter table filelist add {} {}".format(key, _gettype(metadata[key])))
+                except sqlite3.OperationalError:
+                    # column already exists. possible due to race condition between populating
+                    # columns variable and adding the new column
+                    pass
         keys, vals = _key_val_list(metadata)
-        duplicates = search(metadata, db=db, wd=wd)
-        if len(duplicates) > 0:
-            raise ValueError("Duplicate")
         if fname is None:
             fname = "{}.hdf5".format(uuid.uuid4())
-        else:
-            if os.path.exists(os.path.join(wd, fname)):
-                raise ValueError('{} already exists'.format(fname))
         conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [fname, datetime.datetime.now()] + vals)
     return fname
 

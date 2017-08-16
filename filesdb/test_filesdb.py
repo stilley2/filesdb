@@ -1,23 +1,24 @@
 import pytest
 import os
+import sqlite3
+
 from . import filesdb
-
-
-def test_duplication(tmpdir):
-    db = "files.db"
-    filesdb.add_file(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
-    with pytest.raises(ValueError):
-        filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
-    assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
 
 
 def test_file_exists(tmpdir):
     db = "files.db"
     with open(os.path.join(tmpdir, "test"), "w"):
         pass
-    with pytest.raises(ValueError):
+    filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    with pytest.raises(sqlite3.IntegrityError):
         filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
-    assert len(filesdb.search({}, db=db, wd=tmpdir)) == 0
+    assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
+
+
+def test_duplication(tmpdir):
+    db = "files.db"
+    filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
+    filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
 
 
 def test_multiple_adds(tmpdir):
@@ -44,8 +45,6 @@ def test_new_column(tmpdir):
     assert len(filesdb.search(dict(field5=None), db=db, wd=tmpdir)) == 2
     assert len(filesdb.search(dict(field6=None), db=db, wd=tmpdir)) == 1
     assert len(filesdb.search(dict(field6='hi'), db=db, wd=tmpdir)) == 1
-    with pytest.raises(ValueError):
-        filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None, field6=None), db=db, wd=tmpdir)
 
 
 def test_print_csv(tmpdir):
