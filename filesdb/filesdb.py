@@ -49,17 +49,17 @@ def _key_val_list(d, separate_nulls=False):
         return keys, vals
 
 
-def _get_conn(db, wd):
-    conn = sqlite3.connect(os.path.join(wd, db))
+def _get_conn(db, wd, timeout=10):
+    conn = sqlite3.connect(os.path.join(wd, db), timeout=timeout)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def add_file(metadata, db="files.db", wd='.', fname=None):
+def add_file(metadata, db="files.db", wd='.', fname=None, timeout=10):
     for reserved_key in RESERVED_KEYS:
         if reserved_key in metadata.keys():
             raise ValueError("filename is reserved")
-    conn = _get_conn(db, wd)
+    conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp)")
         desc = conn.execute("select * from filelist").description
@@ -79,10 +79,10 @@ def add_file(metadata, db="files.db", wd='.', fname=None):
     return fname
 
 
-def search(metadata, db="files.db", wd='.'):
+def search(metadata, db="files.db", wd='.', timeout=10):
     if not os.path.exists(os.path.join(wd, db)):
         raise RuntimeError('{} not found in {}'.format(db, wd))
-    conn = _get_conn(db, wd)
+    conn = _get_conn(db, wd, timeout=timeout)
     if len(metadata) > 0:
         keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
         search_strs = []
@@ -97,8 +97,8 @@ def search(metadata, db="files.db", wd='.'):
     return rows
 
 
-def print_csv(db='files.db', wd='.'):
-    rows = search({}, db=db, wd=wd)
+def print_csv(db='files.db', wd='.', timeout=10):
+    rows = search({}, db=db, wd=wd, timeout=timeout)
     first = True
     for row in rows:
         if first:
@@ -113,10 +113,11 @@ def main():
     parser.add_argument('command', type=str, choices=['print_csv', 'test'])
     parser.add_argument('--db', '--database', type=str, default='files.db')
     parser.add_argument('--wd', '--working_directory', type=str, default='.')
+    parser.add_argument('--timeout', type=float, default=10.0)
     args = parser.parse_args()
 
     if args.command == 'print_csv':
-        print_csv(db=args.db, wd=os.path.expanduser(args.wd))
+        print_csv(db=args.db, wd=os.path.expanduser(args.wd), timeout=args.timeout)
 
     if args.command == 'test':
         import pytest
