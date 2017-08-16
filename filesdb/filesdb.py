@@ -30,7 +30,7 @@ def _gettype(obj):
     if type(obj) == bool:
         return "int"
     else:
-        raise ValueError("unsupported type")
+        raise ValueError("unsupported type {} for objection {}".format(type(obj), obj))
 
 
 def _key_val_list(d, separate_nulls=False):
