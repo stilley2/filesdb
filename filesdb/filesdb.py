@@ -13,6 +13,7 @@ import uuid
 # https://stackoverflow.com/questions/25387537/sqlite3-operationalerror-near-syntax-error
 # https://stackoverflow.com/questions/15647580/does-null-have-a-data-type
 # https://stackoverflow.com/questions/7519621/where-is-null-not-working-in-sqlite
+# https://stackoverflow.com/questions/16856647/sqlite3-programmingerror-incorrect-number-of-bindings-supplied-the-current-sta
 
 
 RESERVED_KEYS = "filename", "time"
@@ -106,6 +107,14 @@ def print_csv(db='files.db', wd='.', timeout=10):
             print(','.join(keys))
             first = False
         print(','.join([str(row[key]) for key in keys]))
+
+
+def delete(filename, db='files.db', wd='.', timeout=10):
+    if os.path.exists(os.path.join(wd, filename)):
+        os.remove(os.path.join(wd, filename))
+    conn = _get_conn(db, wd, timeout=timeout)
+    with conn:
+        conn.execute("delete from filelist where filename=?", (filename,))
 
 
 def main():

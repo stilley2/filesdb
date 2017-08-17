@@ -70,3 +70,11 @@ def test_unsupported_type(tmpdir):
     db = 'files.db'
     with pytest.raises(ValueError):
         filesdb.add_file(dict(hi=tuple([1, 2, 3])), db=db, wd=tmpdir)
+
+
+def test_delete(tmpdir):
+    db = 'files.db'
+    filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    filesdb.delete("test", wd=tmpdir)
+    filesdb.add_file(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
