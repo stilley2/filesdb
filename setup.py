@@ -11,4 +11,5 @@ setup(name='filesdb',
       python_requires='>=3',
       tests_require=['pytest'],
       setup_requires=['pytest-runner'],
+      url='https://github.com/stilley2/filesdb',
       )
