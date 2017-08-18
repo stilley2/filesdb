@@ -7,5 +7,5 @@ setup(name='filesdb',
       author='Steven Tilley',
       author_email='steventilleyii@gmail.com',
       packages=['filesdb'],
-      entry_points={'console_scripts': ['filesdb = filesdb.filesdb:main']},
+      entry_points={'console_scripts': ['filesdb = filesdb.__init__:main']},
       )

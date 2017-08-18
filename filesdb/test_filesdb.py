@@ -74,8 +74,9 @@ def test_delete(tmpdir):
     filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
     filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
     assert len(filesdb.search({}, db=db, wd=tmpdir)) == 3
-    filesdb.delete(dict(field2=2), wd=tmpdir)
+    rows = filesdb.delete(dict(field2=2), wd=tmpdir)
     assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
+    assert len(rows) == 2
 
 
 def test_str_numeric_equivalence(tmpdir):
@@ -110,6 +111,7 @@ def test_cmd(tmpdir):
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field2=2']).decode().count('\n') == 3
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field2=3']).decode().count('\n') == 2
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'delete', '--dry_run', 'field1=one']).decode().count('\n') == 3
+    assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'delete', '-n', 'field1=one']).decode().count('\n') == 3
     subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), 'delete', 'field1=one'])
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field1=one']).decode().count('\n') == 0
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field2=3']).decode().count('\n') == 0
