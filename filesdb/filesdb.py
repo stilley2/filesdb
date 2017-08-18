@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-__all__ = ['add_file', 'search', 'print_csv']
+__all__ = ['add', 'search', 'delete']
 
 import argparse
 import datetime
@@ -17,21 +17,6 @@ import uuid
 
 
 RESERVED_KEYS = "filename", "time"
-
-
-def _gettype(obj):
-    if obj is None:
-        return "blob"  # data can be of any type
-    if type(obj) == float:
-        return "real"
-    if type(obj) == int:
-        return "int"
-    if type(obj) == str:
-        return "text"
-    if type(obj) == bool:
-        return "int"
-    else:
-        raise ValueError("unsupported type {} for objection {}".format(type(obj), obj))
 
 
 def _key_val_list(d, separate_nulls=False):
@@ -53,48 +38,56 @@ def _key_val_list(d, separate_nulls=False):
 def _get_conn(db, wd, timeout=10):
     conn = sqlite3.connect(os.path.join(wd, db), timeout=timeout)
     conn.row_factory = sqlite3.Row
+    with conn:
+        conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp)")
     return conn
 
 
-def add_file(metadata, db="files.db", wd='.', fname=None, timeout=10):
+def add(metadata, db="files.db", wd='.', fname=None, timeout=10, ext=None):
     for reserved_key in RESERVED_KEYS:
         if reserved_key in metadata.keys():
             raise ValueError("filename is reserved")
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp)")
         desc = conn.execute("select * from filelist").description
         columns = [d[0] for d in desc]
         for key in metadata.keys():
             if key not in columns:
                 try:
-                    conn.execute("alter table filelist add {} {}".format(key, _gettype(metadata[key])))
+                    conn.execute("alter table filelist add {} NUMERIC".format(key))
                 except sqlite3.OperationalError:
                     # column already exists. possible due to race condition between populating
                     # columns variable and adding the new column
                     pass
         keys, vals = _key_val_list(metadata)
         if fname is None:
-            fname = "{}.hdf5".format(uuid.uuid4())
+            fname = "{}".format(uuid.uuid4())
+            if ext is not None:
+                fname += '.{}'.format(ext)
         conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [fname, datetime.datetime.now()] + vals)
     return fname
 
 
+def _make_expression_vals(metadata):
+    keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
+    search_strs = []
+    if len(keys) > 0:
+        search_strs.append(" and ".join(["{}=?".format(key) for key in keys]))
+    if len(null_keys) > 0:
+        search_strs.append(" and ".join(["{} is null".format(key) for key in null_keys]))
+    expr = " and ".join(search_strs)
+    return expr, vals
+
+
 def search(metadata, db="files.db", wd='.', timeout=10):
-    if not os.path.exists(os.path.join(wd, db)):
-        raise RuntimeError('{} not found in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
-    if len(metadata) > 0:
-        keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
-        search_strs = []
-        if len(keys) > 0:
-            search_strs.append(" and ".join(["{}=?".format(key) for key in keys]))
-        if len(null_keys) > 0:
-            search_strs.append(" and ".join(["{} is null".format(key) for key in null_keys]))
-        query_string = "select * from filelist where " + " and ".join(search_strs)
-        rows = conn.execute(query_string, vals).fetchall()
-    else:
-        rows = conn.execute("select * from filelist").fetchall()
+    with conn:
+        if len(metadata) > 0:
+            expr, vals = _make_expression_vals(metadata)
+            query_string = "select * from filelist where " + expr
+            rows = conn.execute(query_string, vals).fetchall()
+        else:
+            rows = conn.execute("select * from filelist").fetchall()
     return rows
 
 
@@ -109,28 +102,94 @@ def print_csv(db='files.db', wd='.', timeout=10):
         print(','.join([str(row[key]) for key in keys]))
 
 
-def delete(filename, db='files.db', wd='.', timeout=10):
-    if os.path.exists(os.path.join(wd, filename)):
-        os.remove(os.path.join(wd, filename))
+def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t'):
+    if len(metadata) == 0:
+        raise ValueError("must have at least one search parameter")
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        conn.execute("delete from filelist where filename=?", (filename,))
+        rows = search(metadata, db=db, wd=wd, timeout=timeout)
+        if len(rows) > 0:
+            if dryrun:
+                _print_rows(rows, delimiter=delimiter)
+            else:
+                for r in rows:
+                    if os.path.exists(os.path.join(wd, r['filename'])):
+                        os.remove(os.path.join(wd, r['filename']))
+                    # potential race condition here, but delete should not be called often
+                    # and it should be called directly (not in a script) so the user can
+                    # keep track of potential issues.
+                    conn.execute('delete from filelist where filename=?', (r['filename'],))
+
+
+def _parse_metadata(metadatalist):
+    metadata = {}
+    for entry in metadatalist:
+        key, val = entry.split('=')
+        val.strip()
+        if val == 'None':
+            val = None
+        metadata[key.strip()] = val
+    return metadata
+
+
+def _print_rows(rows, delimiter='\t'):
+    first = True
+    for row in rows:
+        if first:
+            keys = list(row.keys())
+            print(delimiter.join(keys))
+            first = False
+        print(delimiter.join([str(row[key]) for key in keys]))
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', type=str, choices=['print_csv', 'test'])
     parser.add_argument('--db', '--database', type=str, default='files.db')
     parser.add_argument('--wd', '--working_directory', type=str, default='.')
     parser.add_argument('--timeout', type=float, default=10.0)
+    subparsers = parser.add_subparsers()
+
+    parser_search = subparsers.add_parser('search')
+    parser_search.add_argument('-d', '--delimiter', type=str, default='\t')
+    parser_search.add_argument('metadata', nargs='*')
+    parser_search.set_defaults(subcommand='search')
+
+    parser_add = subparsers.add_parser('add')
+    parser_add.add_argument('--filename', type=str)
+    parser_add.add_argument('--ext', type=str)
+    parser_add.add_argument('metadata', nargs='*')
+    parser_add.set_defaults(subcommand='add')
+
+    parser_delete = subparsers.add_parser('delete')
+    parser_delete.add_argument('-n', '--dry_run', action='store_true')
+    parser_delete.add_argument('-d', '--delimiter', type=str, default='\t')
+    parser_delete.add_argument('metadata', nargs='*')
+    parser_delete.set_defaults(subcommand='delete')
+
+    parser_test = subparsers.add_parser('test')
+    parser_test.set_defaults(subcommand='test')
+
     args = parser.parse_args()
 
-    if args.command == 'print_csv':
-        print_csv(db=args.db, wd=os.path.expanduser(args.wd), timeout=args.timeout)
+    if 'subcommand' not in vars(args).keys():
+        parser.print_help()
 
-    if args.command == 'test':
+    elif args.subcommand == 'search':
+        _print_rows(search(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter)
+
+    elif args.subcommand == 'add':
+        fname = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, fname=args.filename, timeout=args.timeout, ext=args.ext)
+        print(fname)
+
+    elif args.subcommand == 'delete':
+        fname = delete(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run, delimiter=args.delimiter)
+
+    elif args.subcommand == 'test':
         import pytest
         pytest.main([os.path.split(__file__)[0]])
+
+    else:
+        raise RuntimeError
 
 
 if __name__ == '__main__':
