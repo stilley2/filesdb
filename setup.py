@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='filesdb',
-      version='1.0.0',
+      version='0.2.0',
       description='A simple tool for tracking files using a database',
       author='Steven Tilley',
       author_email='steventilleyii@gmail.com',
