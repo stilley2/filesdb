@@ -10,9 +10,9 @@ def test_file_exists(tmpdir):
     db = "files.db"
     with open(os.path.join(tmpdir, "test"), "w"):
         pass
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=tmpdir)
     with pytest.raises(sqlite3.IntegrityError):
-        filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+        filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=tmpdir)
     assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
 
 
@@ -66,10 +66,10 @@ def test_unsupported_type(tmpdir):
 
 def test_delete(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=tmpdir)
     filesdb.delete(dict(filename="test"), wd=tmpdir)
     assert len(filesdb.search({}, db=db, wd=tmpdir)) == 0
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, fname="test", wd=tmpdir)
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=tmpdir)
     assert len(filesdb.search({}, db=db, wd=tmpdir)) == 1
     filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
     filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=tmpdir)
@@ -117,6 +117,7 @@ def test_cmd(tmpdir):
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field2=3']).decode().count('\n') == 0
     assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'search', 'field2=2']).decode().count('\n') == 2
     assert os.path.splitext(subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'add', '--ext=txt', 'field2=2']).decode().strip())[1] == '.txt'
+    assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), 'add', '--filename=hi.txt', 'field2=2']).decode().strip() == 'hi.txt'
 
 
 def test_cmd_None(tmpdir):
@@ -133,6 +134,6 @@ def test_remove_file(tmpdir):
 
 
 def test_delete_error(tmpdir):
-    fname = filesdb.add(dict(field1='test'), wd=tmpdir)
+    filesdb.add(dict(field1='test'), wd=tmpdir)
     with pytest.raises(ValueError):
         filesdb.delete(dict(), wd=tmpdir)

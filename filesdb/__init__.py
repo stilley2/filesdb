@@ -42,7 +42,7 @@ def _get_conn(db, wd, timeout=10):
     return conn
 
 
-def add(metadata, db="files.db", wd='.', fname=None, timeout=10, ext=None):
+def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext=None):
     for reserved_key in RESERVED_KEYS:
         if reserved_key in metadata.keys():
             raise ValueError("filename is reserved")
@@ -59,12 +59,12 @@ def add(metadata, db="files.db", wd='.', fname=None, timeout=10, ext=None):
                     # columns variable and adding the new column
                     pass
         keys, vals = _key_val_list(metadata)
-        if fname is None:
-            fname = "{}".format(uuid.uuid4())
+        if filename is None:
+            filename = "{}".format(uuid.uuid4())
             if ext is not None:
-                fname += '.{}'.format(ext)
-        conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [fname, datetime.datetime.now()] + vals)
-    return fname
+                filename += '.{}'.format(ext)
+        conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [filename, datetime.datetime.now()] + vals)
+    return filename
 
 
 def _make_expression_vals(metadata):
@@ -177,8 +177,8 @@ def main():
         _print_rows(search(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter)
 
     elif args.subcommand == 'add':
-        fname = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, fname=args.filename, timeout=args.timeout, ext=args.ext)
-        print(fname)
+        filename = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext)
+        print(filename)
 
     elif args.subcommand == 'delete':
         rows = delete(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run)
