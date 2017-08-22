@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='filesdb',
-      version='0.2.3',
+      version='0.2.4',
       description='A simple tool for tracking files',
       author='Steven Tilley',
       author_email='steventilleyii@gmail.com',
@@ -12,4 +12,5 @@ setup(name='filesdb',
       tests_require=['pytest'],
       setup_requires=['pytest-runner'],
       url='https://github.com/stilley2/filesdb',
+      license='MIT',
       )
