@@ -13,9 +13,16 @@ import uuid
 # https://stackoverflow.com/questions/15647580/does-null-have-a-data-type
 # https://stackoverflow.com/questions/7519621/where-is-null-not-working-in-sqlite
 # https://stackoverflow.com/questions/16856647/sqlite3-programmingerror-incorrect-number-of-bindings-supplied-the-current-sta
+# https://stackoverflow.com/questions/1535327/how-to-print-a-class-or-objects-of-class-using-print
 
 
 RESERVED_KEYS = "filename", "time"
+
+
+class Row(sqlite3.Row):
+
+    def __str__(self):
+        return '\n'.join(['{}: {}'.format(key, self[key]) for key in self.keys()])
 
 
 def _key_val_list(d, separate_nulls=False):
@@ -36,7 +43,7 @@ def _key_val_list(d, separate_nulls=False):
 
 def _get_conn(db, wd, timeout=10):
     conn = sqlite3.connect(os.path.join(wd, db), timeout=timeout)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = Row
     with conn:
         conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp)")
     return conn
@@ -78,7 +85,7 @@ def _make_expression_vals(metadata):
     return expr, vals
 
 
-def search(metadata, db="files.db", wd='.', timeout=10):
+def search(metadata, db="files.db", wd='.', timeout=10, verbose=False):
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         if len(metadata) > 0:
@@ -87,18 +94,9 @@ def search(metadata, db="files.db", wd='.', timeout=10):
             rows = conn.execute(query_string, vals).fetchall()
         else:
             rows = conn.execute("select * from filelist").fetchall()
+    if verbose:
+        _print_rows(rows)
     return rows
-
-
-def print_csv(db='files.db', wd='.', timeout=10):
-    rows = search({}, db=db, wd=wd, timeout=timeout)
-    first = True
-    for row in rows:
-        if first:
-            keys = list(row.keys())
-            print(','.join(keys))
-            first = False
-        print(','.join([str(row[key]) for key in keys]))
 
 
 def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t'):
