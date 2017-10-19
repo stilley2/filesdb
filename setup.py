@@ -12,4 +12,5 @@ setup(name='filesdb',
       tests_require=['pytest'],
       setup_requires=['pytest-runner'],
       url='https://github.com/stilley2/filesdb',
+      license='MIT',
       )
