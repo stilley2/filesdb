@@ -87,7 +87,9 @@ def _make_expression_vals(metadata):
     return expr, vals
 
 
-def search(metadata, db="files.db", wd='.', timeout=10, verbose=False):
+def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None):
+    if not os.path.exists(os.path.join(wd, db)):
+        raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         if len(metadata) > 0:
@@ -97,11 +99,13 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False):
         else:
             rows = conn.execute("select * from filelist").fetchall()
     if verbose:
-        _print_rows(rows)
+        _print_rows(rows, keys=keys_to_print)
     return rows
 
 
 def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t'):
+    if not os.path.exists(os.path.join(wd, db)):
+        raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     if len(metadata) == 0:
         raise ValueError("must have at least one search parameter")
     conn = _get_conn(db, wd, timeout=timeout)

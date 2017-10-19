@@ -137,3 +137,10 @@ def test_delete_error(tmpdir):
     filesdb.add(dict(field1='test'), wd=tmpdir)
     with pytest.raises(ValueError):
         filesdb.delete(dict(), wd=tmpdir)
+
+
+def test_db_dne_error(tmpdir):
+    with pytest.raises(FileNotFoundError):
+        filesdb.delete(dict(), wd=tmpdir)
+    with pytest.raises(FileNotFoundError):
+        filesdb.search(dict(), wd=tmpdir)
