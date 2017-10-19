@@ -134,11 +134,12 @@ def _parse_metadata(metadatalist):
     return metadata
 
 
-def _print_rows(rows, delimiter='\t'):
+def _print_rows(rows, delimiter='\t', keys=None):
     first = True
     for row in rows:
         if first:
-            keys = list(row.keys())
+            if keys is None:
+                keys = list(row.keys())
             print(delimiter.join(keys))
             first = False
         print(delimiter.join([str(row[key]) for key in keys]))
@@ -153,6 +154,7 @@ def main():
 
     parser_search = subparsers.add_parser('search', help='Search database')
     parser_search.add_argument('-d', '--delimiter', type=str, default='\t', help='Output column delimiter')
+    parser_search.add_argument('-o', '--output_columns', type=str, default=None, help='Comma delimited list of column names to print')
     parser_search.add_argument('metadata', nargs='*', help='list of keys and values', metavar="KEY=VALUE")
     parser_search.set_defaults(subcommand='search')
 
@@ -166,6 +168,7 @@ def main():
     parser_delete = subparsers.add_parser('delete', help='Delete files from database and working director')
     parser_delete.add_argument('-n', '--dry_run', action='store_true', help='Print entries to be delete, but do not delete')
     parser_delete.add_argument('-d', '--delimiter', type=str, default='\t', help='Output column delimiter for dry run')
+    parser_delete.add_argument('-o', '--output_columns', type=str, default=None, help='Comma delimited list of column names to print')
     parser_delete.add_argument('metadata', nargs='*', help='List of keys and values', metavar="KEY=VALUE")
     parser_delete.set_defaults(subcommand='delete')
 
@@ -178,7 +181,8 @@ def main():
         parser.print_help()
 
     elif args.subcommand == 'search':
-        _print_rows(search(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter)
+        _print_rows(search(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter,
+                    keys=None if args.output_columns is None else args.output_columns.split(','))
 
     elif args.subcommand == 'add':
         filename = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext)
@@ -186,7 +190,8 @@ def main():
 
     elif args.subcommand == 'delete':
         rows = delete(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run)
-        _print_rows(rows, delimiter=args.delimiter)
+        _print_rows(rows, delimiter=args.delimiter,
+                    keys=None if args.output_columns is None else args.output_columns.split(','))
 
     elif args.subcommand == 'test':
         import pytest
