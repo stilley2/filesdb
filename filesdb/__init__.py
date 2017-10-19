@@ -30,6 +30,8 @@ def _key_val_list(d, separate_nulls=False):
     vals = []
     null_list = []
     for key, val in d.items():
+        if not isinstance(val, (type(None), int, float, str, bytes)):
+            raise RuntimeError('{} has type {}, which is not supported'.format(key, type(val)))
         if separate_nulls and val is None:
             null_list.append(key)
         else:

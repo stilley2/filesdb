@@ -60,7 +60,7 @@ def test_reserved_names(tmpdir):
 
 def test_unsupported_type(tmpdir):
     db = 'files.db'
-    with pytest.raises(sqlite3.InterfaceError):
+    with pytest.raises(RuntimeError):
         filesdb.add(dict(hi=tuple([1, 2, 3])), db=db, wd=tmpdir)
 
 
