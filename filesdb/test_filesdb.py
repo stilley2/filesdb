@@ -18,8 +18,8 @@ def test_file_exists(tmpdir):
 
 def test_duplication(tmpdir):
     db = "files.db"
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='1')
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='2')
 
 
 def test_multiple_adds(tmpdir):
@@ -28,6 +28,8 @@ def test_multiple_adds(tmpdir):
     filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=False, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=False, field5=42), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=False, field5="some string"), db=db, wd=str(tmpdir))
+    with pytest.raises(sqlite3.IntegrityError):
+        filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=False, field5="some string"), db=db, wd=str(tmpdir))
     assert len(filesdb.search(dict(field1='one'), db=db, wd=str(tmpdir))) == 4
     assert len(filesdb.search(dict(field2=2), db=db, wd=str(tmpdir))) == 4
     assert len(filesdb.search(dict(field2=2, field1="one"), db=db, wd=str(tmpdir))) == 4
@@ -80,23 +82,42 @@ def test_delete(tmpdir):
 
 
 def test_str_numeric_equivalence(tmpdir):
-    filesdb.add(dict(field1='1'), wd=str(tmpdir))
+    filesdb.add(dict(field1='1', field2=1), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 1
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 1
-    filesdb.add(dict(field1='1.0'), wd=str(tmpdir))
+    filesdb.add(dict(field1='1.0', field2=2), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 2
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 2
-    filesdb.add(dict(field1=1.0), wd=str(tmpdir))
+    filesdb.add(dict(field1=1.0, field2=3), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 3
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 3
-    filesdb.add(dict(field1=1), wd=str(tmpdir))
+    filesdb.add(dict(field1=1, field2=4), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 4
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 4
-    filesdb.add(dict(field1="one"), wd=str(tmpdir))
-    assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 4
-    assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 4
+    filesdb.add(dict(field1=1e0, field2=5), wd=str(tmpdir))
+    assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 5
+    assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 5
+    filesdb.add(dict(field1="one", field2=6), wd=str(tmpdir))
+    assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 5
+    assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 5
     assert len(filesdb.search(dict(field1="one"), wd=str(tmpdir))) == 1
     assert len(filesdb.search(dict(field1="one"), wd=str(tmpdir))) == 1
+
+
+def test_hash():
+    h1 = filesdb._hash_metadata({'test1': 2, 'hi': True, 'string': 'a'})
+    h2 = filesdb._hash_metadata({'test1': 2, 'hi': False, 'string': 'a'})
+    h3 = filesdb._hash_metadata({'test1': 2, 'string': 'a', 'hi': False})
+    assert h1 != h2
+    assert h2 == h3
+    h4 = filesdb._hash_metadata({'test1': 2.0, 'hi': False, 'string': 'a'})
+    h5 = filesdb._hash_metadata({'test1': '2.0', 'hi': False, 'string': 'a'})
+    h6 = filesdb._hash_metadata({'test1': '2', 'hi': False, 'string': 'a'})
+    h7 = filesdb._hash_metadata({'test1': '2e0', 'hi': False, 'string': 'a'})
+    assert h4 == h3
+    assert h5 == h3
+    assert h6 == h3
+    assert h7 == h3
 
 
 def test_cmd(tmpdir):
@@ -116,8 +137,11 @@ def test_cmd(tmpdir):
     assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=one']).decode().count('\n') == 0
     assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=3']).decode().count('\n') == 0
     assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=2']).decode().count('\n') == 2
-    assert os.path.splitext(subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--ext=txt', 'field2=2']).decode().strip())[1] == '.txt'
+    assert os.path.splitext(subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--ext=.txt', 'field2=2']).decode().strip())[1] == '.txt'
     assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=hi.txt', 'field2=2']).decode().strip() == 'hi.txt'
+    fname = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--prefix=hi', '--suffix=there', '--ext=.hdf5', 'field2=2']).decode().strip()
+    assert fname[:2] == 'hi'
+    assert fname[-10:] == 'there.hdf5'
 
 
 def test_cmd_None(tmpdir):
@@ -144,3 +168,15 @@ def test_db_dne_error(tmpdir):
         filesdb.delete(dict(), wd=str(tmpdir))
     with pytest.raises(FileNotFoundError):
         filesdb.search(dict(), wd=str(tmpdir))
+
+
+def test_filename_kwargs(tmpdir):
+    with pytest.raises(ValueError):
+        filesdb.add(dict(field1='test'), wd=str(tmpdir), filename='1', ext='hi')
+    with pytest.raises(ValueError):
+        filesdb.add(dict(field1='test'), wd=str(tmpdir), filename='1', prefix='hi')
+    with pytest.raises(ValueError):
+        filesdb.add(dict(field1='test'), wd=str(tmpdir), filename='1', suffix='hi')
+    out = filesdb.add(dict(field1='test'), wd=str(tmpdir), suffix='hi', prefix='there', ext='.wasd')
+    assert out[:5] == 'there'
+    assert out[-7:] == 'hi.wasd'

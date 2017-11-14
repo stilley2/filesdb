@@ -3,9 +3,9 @@ from __future__ import print_function
 
 import argparse
 import datetime
+import hashlib
 import os
 import sqlite3
-import uuid
 
 
 # https://stackoverflow.com/questions/305378/list-of-tables-db-schema-dump-etc-using-the-python-sqlite3-api
@@ -51,7 +51,27 @@ def _get_conn(db, wd, timeout=10):
     return conn
 
 
-def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext=None):
+def _hash_metadata(metadata):
+    keys = list(metadata.keys())
+    keys.sort()
+    h = hashlib.sha256()
+    for k in keys:
+        h.update(bytes(str(k), 'utf-8'))
+        val = metadata[k]
+        if isinstance(val, str):
+            try:
+                val = float(val)
+            except ValueError:
+                pass
+        elif isinstance(val, int):
+            val = float(val)
+        h.update(bytes(str(val), 'utf-8'))
+    return h.hexdigest()
+
+
+def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', prefix='', suffix=''):
+    if filename and (ext or prefix or suffix):
+        raise ValueError('ext, prefix, and suffix cannot be specified if filename is specified')
     for reserved_key in RESERVED_KEYS:
         if reserved_key in metadata.keys():
             raise ValueError("filename is reserved")
@@ -69,9 +89,7 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext=None):
                     pass
         keys, vals = _key_val_list(metadata)
         if filename is None:
-            filename = "{}".format(uuid.uuid4())
-            if ext is not None:
-                filename += '.{}'.format(ext)
+            filename = '{}{}{}{}'.format(prefix, _hash_metadata(metadata), suffix, ext)
         conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [filename, datetime.datetime.now()] + vals)
     return filename
 
@@ -161,7 +179,9 @@ def main():
     parser_add = subparsers.add_parser('add', help=('Add file to database. If filename is not specified, ' +
                                                     'create a unique file name with extension given by ext'))
     parser_add.add_argument('--filename', type=str)
-    parser_add.add_argument('--ext', type=str)
+    parser_add.add_argument('--prefix', type=str, default='')
+    parser_add.add_argument('--suffix', type=str, default='')
+    parser_add.add_argument('--ext', type=str, default='')
     parser_add.add_argument('metadata', nargs='*', help='List of keys and values', metavar="KEY=VALUE")
     parser_add.set_defaults(subcommand='add')
 
@@ -185,7 +205,8 @@ def main():
                     keys=None if args.output_columns is None else args.output_columns.split(','))
 
     elif args.subcommand == 'add':
-        filename = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext)
+        filename = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext,
+                       prefix=args.prefix, suffix=args.suffix)
         print(filename)
 
     elif args.subcommand == 'delete':
