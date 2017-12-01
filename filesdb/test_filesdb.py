@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import pytest
 import os
 import sqlite3
@@ -81,6 +82,96 @@ def test_delete(tmpdir):
     assert len(rows) == 2
 
 
+def test_delete_explicit_operator(tmpdir):
+    db = 'files.db'
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.delete(dict(filename="test"), wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 0
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
+    filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
+    rows = filesdb.delete(dict(field2=2), wd=str(tmpdir), comparison_operators=dict(field1='=='))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
+    assert len(rows) == 2
+
+
+def test_delete_explicit_ne(tmpdir):
+    db = 'files.db'
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.delete(dict(filename="test"), wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 0
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
+    filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
+    rows = filesdb.delete(dict(field2=2), wd=str(tmpdir), comparison_operators=dict(field2='!='))
+    assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 2
+    assert len(rows) == 1
+
+
+def test_explicit_ne_eq(tmpdir):
+    db = 'files.db'
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='!='))) == 1
+    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='<>'))) == 1
+
+
+def test_explicit_e_eq(tmpdir):
+    db = 'files.db'
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='='))) == 1
+    assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='=='))) == 1
+
+
+def test_make_expression_vals():
+    metadata = OrderedDict(field1="one", field2="2", field3=3, field4=None)
+    assert filesdb._make_expression_vals(metadata, comparison_operators=dict())[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert filesdb._make_expression_vals(metadata, comparison_operators=dict(field1='=', field2='=', field3='=', field4='='))[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert filesdb._make_expression_vals(metadata, comparison_operators=dict(field1='==', field2='==', field3='==', field4='=='))[0] == "field1==? and field2==? and field3==? and field4 is null"
+    assert filesdb._make_expression_vals(metadata, comparison_operators=dict(field1='!=', field2='!=', field3='!=', field4='!='))[0] == "field1!=? and field2!=? and field3!=? and field4 is not null"
+    assert filesdb._make_expression_vals(metadata, comparison_operators=dict(field1='<>', field2='<>', field3='<>', field4='<>'))[0] == "field1<>? and field2<>? and field3<>? and field4 is not null"
+
+
+def test_search(tmpdir):
+    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5), wd=tmpdir, filename='1')
+    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=6), wd=tmpdir, filename='2')
+    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=5, field6=6), wd=tmpdir, filename='3')
+    rows = filesdb.search(dict(field5=5, field2=2), wd=tmpdir)
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '1'
+    rows = filesdb.search(dict(field5=5), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '2'
+    rows = filesdb.search(dict(field5=6), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    assert len(rows) == 2
+    assert rows[0]['filename'] == '1'
+    assert rows[1]['filename'] == '3'
+    rows = filesdb.search(dict(field5=6, field2=2), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '1'
+    rows = filesdb.search(dict(field6=None), wd=tmpdir, comparison_operators=dict(field6='<>'))
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '3'
+    rows = filesdb.search(dict(field6=None, field5=6), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '1'
+    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5, field6=7), wd=tmpdir, filename='4')
+    rows = filesdb.search(dict(field6=None), wd=tmpdir, comparison_operators=dict(field6='<>'))
+    assert len(rows) == 2
+    assert rows[0]['filename'] == '3'
+    assert rows[1]['filename'] == '4'
+    rows = filesdb.search(dict(field6=None, field2=3), wd=tmpdir, comparison_operators=dict(field6='<>', field2='!='))
+    assert len(rows) == 1
+    assert rows[0]['filename'] == '4'
+
+
 def test_str_numeric_equivalence(tmpdir):
     filesdb.add(dict(field1='1', field2=1), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 1
@@ -142,6 +233,80 @@ def test_cmd(tmpdir):
     fname = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--prefix=hi', '--suffix=there', '--ext=.hdf5', 'field2=2']).decode().strip()
     assert fname[:2] == 'hi'
     assert fname[-10:] == 'there.hdf5'
+
+
+def test_search_delete_command(tmpdir):
+    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=1', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5'])
+    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=2', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=6'])
+    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=3', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=5', 'field6=6'])
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5=5', 'field2=2']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '1'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5<>5']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '2'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6']).decode()
+    assert rows.count('\n') == 3
+    assert rows.split('\n')[1].split()[0] == '1'
+    assert rows.split('\n')[2].split()[0] == '3'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6', 'field2=2']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '1'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6<>None']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '3'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6==None', 'field5!=6']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '1'
+    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=4', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5', 'field6=7'])
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
+    assert rows.count('\n') == 3
+    assert rows.split('\n')[1].split()[0] == '3'
+    assert rows.split('\n')[2].split()[0] == '4'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None', 'field2!=3']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '4'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field5=5', 'field2=2', 'field6=None']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '1'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    assert rows.count('\n') == 4
+    assert rows.split('\n')[1].split()[0] == '2'
+    assert rows.split('\n')[2].split()[0] == '3'
+    assert rows.split('\n')[3].split()[0] == '4'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field6<>None']).decode()
+    assert rows.count('\n') == 3
+    assert rows.split('\n')[1].split()[0] == '3'
+    assert rows.split('\n')[2].split()[0] == '4'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '2'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1<>None']).decode()
+    assert rows.count('\n') == 2
+    assert rows.split('\n')[1].split()[0] == '2'
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    assert rows.count('\n') == 0
+
+
+def test_add_cmd_fail(tmpdir):
+    with pytest.raises(subprocess.SubprocessError):
+        subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field5!=2'])
+
+
+def test_parse_metadata():
+    metadata, co = filesdb._parse_metadata(['field1=1', 'field2==2', 'field3!=3', 'field4<>4'])
+    assert metadata['field1'] == '1'
+    assert metadata['field2'] == '2'
+    assert metadata['field3'] == '3'
+    assert metadata['field4'] == '4'
+    assert co['field1'] == '='
+    assert co['field2'] == '=='
+    assert co['field3'] == '!='
+    assert co['field4'] == '<>'
+    with pytest.raises(ValueError):
+        filesdb._parse_metadata(['field1'])
+    with pytest.raises(ValueError):
+        filesdb._parse_metadata(['field1=1=3'])
 
 
 def test_cmd_None(tmpdir):

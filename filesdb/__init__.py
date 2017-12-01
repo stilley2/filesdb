@@ -17,6 +17,7 @@ import sqlite3
 
 
 RESERVED_KEYS = "filename", "time"
+_NULL_OP_MAP = {'=': 'is', '==': 'is', '!=': 'is not', '<>': 'is not'}
 
 
 class Row(sqlite3.Row):
@@ -94,24 +95,26 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
     return filename
 
 
-def _make_expression_vals(metadata):
+def _make_expression_vals(metadata, comparison_operators):
     keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
     search_strs = []
     if len(keys) > 0:
-        search_strs.append(" and ".join(["{}=?".format(key) for key in keys]))
+        search_strs.append(" and ".join(["{}{}?".format(key, comparison_operators.get(key, '=')) for key in keys]))
     if len(null_keys) > 0:
-        search_strs.append(" and ".join(["{} is null".format(key) for key in null_keys]))
+        search_strs.append(" and ".join(["{} {} null".format(key, _NULL_OP_MAP[comparison_operators.get(key, '=')]) for key in null_keys]))
     expr = " and ".join(search_strs)
     return expr, vals
 
 
-def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None):
+def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, comparison_operators=None):
+    if comparison_operators is None:
+        comparison_operators = {}
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         if len(metadata) > 0:
-            expr, vals = _make_expression_vals(metadata)
+            expr, vals = _make_expression_vals(metadata, comparison_operators)
             query_string = "select * from filelist where " + expr
             rows = conn.execute(query_string, vals).fetchall()
         else:
@@ -121,14 +124,14 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
     return rows
 
 
-def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t'):
+def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t', comparison_operators=None):
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     if len(metadata) == 0:
         raise ValueError("must have at least one search parameter")
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        rows = search(metadata, db=db, wd=wd, timeout=timeout)
+        rows = search(metadata, db=db, wd=wd, timeout=timeout, comparison_operators=comparison_operators)
         if len(rows) > 0:
             if not dryrun:
                 for r in rows:
@@ -143,13 +146,24 @@ def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter=
 
 def _parse_metadata(metadatalist):
     metadata = {}
+    comparison_operators = {}
     for entry in metadatalist:
-        key, val = entry.split('=')
-        val.strip()
-        if val == 'None':
-            val = None
-        metadata[key.strip()] = val
-    return metadata
+        for operator in ['==', '!=', '=', '<>']:
+            split_entry = entry.split(operator)
+            if len(split_entry) not in [1, 2]:
+                raise ValueError('invalid metadata term: {}'.format(entry))
+            if len(split_entry) == 2:
+                key, val = split_entry
+                val.strip()
+                if val == 'None':
+                    val = None
+                metadata[key.strip()] = val
+                comparison_operators[key.strip()] = operator
+                break
+        else:
+            raise ValueError('no suitable operator found in metadata term: {}'.format(entry))
+
+    return metadata, comparison_operators
 
 
 def _print_rows(rows, delimiter='\t', keys=None):
@@ -182,7 +196,7 @@ def main():
     parser_add.add_argument('--prefix', type=str, default='')
     parser_add.add_argument('--suffix', type=str, default='')
     parser_add.add_argument('--ext', type=str, default='')
-    parser_add.add_argument('metadata', nargs='*', help='List of keys and values', metavar="KEY=VALUE")
+    parser_add.add_argument('metadata', nargs='*', help='List of keys and values.', metavar="KEY=VALUE")
     parser_add.set_defaults(subcommand='add')
 
     parser_delete = subparsers.add_parser('delete', help='Delete files from database and working director')
@@ -201,16 +215,22 @@ def main():
         parser.print_help()
 
     elif args.subcommand == 'search':
-        _print_rows(search(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter,
+        metadata, comparison_operators = _parse_metadata(args.metadata)
+        _print_rows(search(metadata, db=args.db, wd=args.wd, timeout=args.timeout, comparison_operators=comparison_operators), delimiter=args.delimiter,
                     keys=None if args.output_columns is None else args.output_columns.split(','))
 
     elif args.subcommand == 'add':
-        filename = add(_parse_metadata(args.metadata), db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext,
+        metadata, comparison_operators = _parse_metadata(args.metadata)
+        for operator in comparison_operators.values():
+            if operator not in ['=', '==']:
+                raise ValueError('only equality operators allowed for add')
+        filename = add(metadata, db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext,
                        prefix=args.prefix, suffix=args.suffix)
         print(filename)
 
     elif args.subcommand == 'delete':
-        rows = delete(_parse_metadata(args.metadata), db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run)
+        metadata, comparison_operators = _parse_metadata(args.metadata)
+        rows = delete(metadata, db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run, comparison_operators=comparison_operators)
         _print_rows(rows, delimiter=args.delimiter,
                     keys=None if args.output_columns is None else args.output_columns.split(','))
 
