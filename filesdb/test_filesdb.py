@@ -352,3 +352,5 @@ def test_repr_html(tmpdir):
     filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     out = filesdb.search({}, wd=str(tmpdir))
     out._repr_html_()
+    out = filesdb.search(dict(field1="two"), wd=str(tmpdir))
+    out._repr_html_()

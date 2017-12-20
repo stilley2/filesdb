@@ -29,6 +29,8 @@ class Row(sqlite3.Row):
 class RowList(list):
 
     def _repr_html_(self):
+        if len(self) == 0:
+            return
         out = '<table>\n<thead><tr>\n'
         keys = self[0].keys()
         for k in keys:
