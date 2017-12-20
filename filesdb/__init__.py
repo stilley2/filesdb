@@ -26,6 +26,23 @@ class Row(sqlite3.Row):
         return '\n'.join(['{}: {}'.format(key, self[key]) for key in self.keys()])
 
 
+class RowList(list):
+
+    def _repr_html_(self):
+        out = '<table>\n<thead><tr>\n'
+        keys = self[0].keys()
+        for k in keys:
+            out += '<th>{}</th>\n'.format(k)
+        out += '</tr>\n</thead>\n<tbody>\n'
+        for r in self:
+            out += '<tr>\n'
+            for k in keys:
+                out += '<th>{}</th>\n'.format(r[k])
+            out += '</tr>\n'
+        out += '</tbody>\n</table>'
+        return out
+
+
 def _key_val_list(d, separate_nulls=False):
     keys = []
     vals = []
@@ -121,7 +138,7 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
             rows = conn.execute("select * from filelist").fetchall()
     if verbose:
         _print_rows(rows, keys=keys_to_print)
-    return rows
+    return RowList(rows)
 
 
 def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t', comparison_operators=None):
@@ -141,7 +158,7 @@ def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter=
                     # and it should be called directly (not in a script) so the user can
                     # keep track of potential issues.
                     conn.execute('delete from filelist where filename=?', (r['filename'],))
-    return rows
+    return RowList(rows)
 
 
 def _parse_metadata(metadatalist):

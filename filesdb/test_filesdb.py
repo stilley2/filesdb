@@ -345,3 +345,10 @@ def test_filename_kwargs(tmpdir):
     out = filesdb.add(dict(field1='test'), wd=str(tmpdir), suffix='hi', prefix='there', ext='.wasd')
     assert out[:5] == 'there'
     assert out[-7:] == 'hi.wasd'
+
+
+def test_repr_html(tmpdir):
+    db = "files.db"
+    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    out = filesdb.search({}, wd=str(tmpdir))
+    out._repr_html_()
