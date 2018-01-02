@@ -1,4 +1,6 @@
 from collections import OrderedDict
+import datetime
+import filecmp
 import pytest
 import os
 import sqlite3
@@ -354,3 +356,65 @@ def test_repr_html(tmpdir):
     out._repr_html_()
     out = filesdb.search(dict(field1="two"), wd=str(tmpdir))
     out._repr_html_()
+
+
+def test_copy(tmpdir):
+    indir = os.path.join(str(tmpdir), 'indir')
+    os.mkdir(indir)
+    outdir = os.path.join(str(tmpdir), 'outdir')
+    os.mkdir(outdir)
+    fname = filesdb.add(dict(field1="one"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+
+    with open(infname, 'w') as f:
+        f.write('test')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+    assert filecmp.cmp(infname, outfname)
+    assert os.stat(infname, follow_symlinks=False).st_ino == os.stat(outfname, follow_symlinks=False).st_ino
+
+    inrows = filesdb.search({}, wd=indir)
+    outrows = filesdb.search({}, wd=outdir)
+    assert len(inrows) == 1
+    assert len(outrows) == 1
+    assert inrows[0] == outrows[0]
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+    fname = filesdb.add(dict(field1="two"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+    with open(infname, 'w') as f:
+        f.write('test2')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+    assert filecmp.cmp(infname, outfname)
+    assert os.stat(infname, follow_symlinks=False).st_ino == os.stat(outfname, follow_symlinks=False).st_ino
+
+    fname = filesdb.add(dict(field1="three"), wd=indir)
+    filesdb.add(dict(field1="four"), wd=outdir, filename=fname)
+
+    with pytest.raises(RuntimeError):
+        filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+    fname = filesdb.add(dict(field1="five"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+    with open(infname, 'w') as f:
+        f.write('test')
+    with open(outfname, 'w') as f:
+        f.write('test2')
+
+    with pytest.raises(RuntimeError):
+        filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+
+def test_add_fail(tmpdir):
+    with pytest.raises(ValueError):
+        filesdb.add({'filename': 'test'}, wd=str(tmpdir), copy_mode=True)
+    with pytest.raises(ValueError):
+        filesdb.add({'time': datetime.datetime.now()}, wd=str(tmpdir), copy_mode=True)
+    with pytest.raises(ValueError):
+        filesdb.add({'filename': 'test', 'time': datetime.datetime.now()}, filename='test', wd=str(tmpdir), copy_mode=True)

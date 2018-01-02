@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import argparse
 import datetime
+import filecmp
 import hashlib
 import os
 import sqlite3
@@ -89,12 +90,23 @@ def _hash_metadata(metadata):
     return h.hexdigest()
 
 
-def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', prefix='', suffix=''):
+def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', prefix='', suffix='', copy_mode=False):
     if filename and (ext or prefix or suffix):
         raise ValueError('ext, prefix, and suffix cannot be specified if filename is specified')
-    for reserved_key in RESERVED_KEYS:
-        if reserved_key in metadata.keys():
-            raise ValueError("filename is reserved")
+    if copy_mode:
+        if 'filename' not in metadata:
+            raise ValueError('filename must be in metadata in copy_mode')
+        if filename is not None:
+            raise ValueError('filename kwarg argument must be None in copy_mode')
+        filename = metadata.pop('filename')
+        if 'time' not in metadata:
+            raise ValueError('time must be in metadata in copy_mode')
+        currtime = metadata.pop('time')
+    else:
+        currtime = datetime.datetime.now()
+        for reserved_key in RESERVED_KEYS:
+            if reserved_key in metadata.keys():
+                raise ValueError("filename is reserved")
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         desc = conn.execute("select * from filelist").description
@@ -110,7 +122,7 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
         keys, vals = _key_val_list(metadata)
         if filename is None:
             filename = '{}{}{}{}'.format(prefix, _hash_metadata(metadata), suffix, ext)
-        conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [filename, datetime.datetime.now()] + vals)
+        conn.execute("insert into filelist (filename, time, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 2)) + ")", [filename, currtime] + vals)
     return filename
 
 
@@ -141,6 +153,34 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
     if verbose:
         _print_rows(rows, keys=keys_to_print)
     return RowList(rows)
+
+
+def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='hardlink'):
+    rowin = search({'filename': filename}, db=db, wd=wd)
+    assert len(rowin) == 1
+    rowin = rowin[0]
+    try:
+        row = search({'filename': filename}, db=outdb, wd=outdir)
+    except FileNotFoundError:
+        add(dict(rowin), db=outdb, wd=outdir, copy_mode=True)
+    else:
+        if len(row) > 1:
+            raise RuntimeError('multiple entries found. this should be impossible')
+        elif len(row) == 1:
+            if row[0] != rowin:
+                raise RuntimeError('filename already appears in output database, but with different parameters')
+        else:
+            add(dict(rowin), db=outdb, wd=outdir, copy_mode=True)
+    outfull = os.path.join(outdir, filename)
+    infull = os.path.join(wd, filename)
+    if os.path.exists(outfull):
+        if not filecmp.cmp(outfull, infull, shallow=False):
+            raise RuntimeError('File already copied, but results not identical')
+    else:
+        if copytype == 'hardlink':
+            os.link(infull, outfull)
+        else:
+            raise ValueError('unsupported copytype')
 
 
 def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t', comparison_operators=None):
