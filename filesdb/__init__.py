@@ -155,6 +155,15 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
     return RowList(rows)
 
 
+def _cmprows(r1, r2):
+    r1 = dict(r1)
+    r2 = dict(r2)
+    for k in (set(r1.keys()) | set(r2.keys())):
+        if r1.get(k) != r2.get(k):
+            return False
+    return True
+
+
 def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='hardlink'):
     rowin = search({'filename': filename}, db=db, wd=wd)
     assert len(rowin) == 1
@@ -167,7 +176,7 @@ def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='ha
         if len(row) > 1:
             raise RuntimeError('multiple entries found. this should be impossible')
         elif len(row) == 1:
-            if row[0] != rowin:
+            if not _cmprows(row[0], rowin):
                 raise RuntimeError('filename already appears in output database, but with different parameters')
         else:
             add(dict(rowin), db=outdb, wd=outdir, copy_mode=True)

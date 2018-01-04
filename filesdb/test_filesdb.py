@@ -411,6 +411,37 @@ def test_copy(tmpdir):
         filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
 
+def test_copy_newcol(tmpdir):
+    indir = os.path.join(str(tmpdir), 'indir')
+    os.mkdir(indir)
+    outdir = os.path.join(str(tmpdir), 'outdir')
+    os.mkdir(outdir)
+    fname = filesdb.add(dict(field1="one"), wd=indir)
+    infname = os.path.join(indir, fname)
+
+    with open(infname, 'w') as f:
+        f.write('test')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+    filesdb.add(dict(field1="two", field2="three"), wd=indir)
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+
+def test_cmprows():
+    r1 = dict(hi=2, there=3)
+    r2 = dict(hi=2, there=3)
+    assert filesdb._cmprows(r1, r2)
+    r1 = dict(hi=2)
+    r2 = dict(hi=2, there=None)
+    assert filesdb._cmprows(r1, r2)
+    r1 = dict(hi=2, there=1)
+    r2 = dict(hi=2, there=None)
+    assert not filesdb._cmprows(r1, r2)
+    r1 = dict(hi=2, there=1)
+    r2 = dict(hi=2)
+    assert not filesdb._cmprows(r1, r2)
+
+
 def test_add_fail(tmpdir):
     with pytest.raises(ValueError):
         filesdb.add({'filename': 'test'}, wd=str(tmpdir), copy_mode=True)
