@@ -449,3 +449,40 @@ def test_add_fail(tmpdir):
         filesdb.add({'time': datetime.datetime.now()}, wd=str(tmpdir), copy_mode=True)
     with pytest.raises(ValueError):
         filesdb.add({'filename': 'test', 'time': datetime.datetime.now()}, filename='test', wd=str(tmpdir), copy_mode=True)
+
+
+def test_merge(tmpdir):
+    in1 = 'in1.db'
+    out = 'out.db'
+    filesdb.add(dict(hi=2, there=3), db=in1, wd=str(tmpdir), filename='1')
+    filesdb.add(dict(hi=3, there=3), db=in1, wd=str(tmpdir), filename='2')
+    rowitem2 = [r for r in filesdb.search({}, db=in1, wd=str(tmpdir)) if r['filename'] == '2'][0]
+
+    filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
+    filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
+    filesdb.merge(in1, out, wd=str(tmpdir))
+    r1 = filesdb.search({}, db=in1, wd=str(tmpdir))
+    rout = filesdb.search({}, db=out, wd=str(tmpdir))
+    for r in r1:
+        assert r in rout
+    assert len(rout) == 3
+
+    out = 'outsp.db'
+    filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
+    filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
+    subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
+    assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'search']).decode().count('\n') == 4
+
+    out = 'out2.db'
+    filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
+    filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
+    filesdb.add(dict(hi=100), db=out, wd=str(tmpdir), filename='1')
+    with pytest.raises(RuntimeError):
+        filesdb.merge(in1, out, wd=str(tmpdir))
+
+    out = 'out2sb.db'
+    filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
+    filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
+    filesdb.add(dict(hi=100), db=out, wd=str(tmpdir), filename='1')
+    with pytest.raises(subprocess.CalledProcessError):
+        subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])

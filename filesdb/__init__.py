@@ -164,6 +164,21 @@ def _cmprows(r1, r2):
     return True
 
 
+def merge(indb, outdb, wd='.'):
+    rowsin = search({}, db=indb, wd=wd)
+    rowsout = search({}, db=outdb, wd=wd)
+    rowsoutdict = {r['filename']: r for r in rowsout}
+    fnamesout = {r['filename'] for r in rowsout}
+    rowsindict = {r['filename']: r for r in rowsin}
+
+    for fname, row in rowsindict.items():
+        if fname in fnamesout:
+            if not _cmprows(row, rowsoutdict[fname]):
+                raise RuntimeError('{} detected in output database, but with different rows'.format(fname))
+        else:
+            add(dict(row), db=outdb, wd=wd, copy_mode=True)
+
+
 def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='hardlink'):
     rowin = search({'filename': filename}, db=db, wd=wd)
     assert len(rowin) == 1
@@ -274,6 +289,10 @@ def main():
     parser_delete.add_argument('metadata', nargs='*', help='List of keys and values', metavar="KEY=VALUE")
     parser_delete.set_defaults(subcommand='delete')
 
+    parser_merge = subparsers.add_parser('merge', help='Merge input database into --db. (input remains unchanged)')
+    parser_merge.add_argument('input', type=str, help='Input database.')
+    parser_merge.set_defaults(subcommand='merge')
+
     parser_test = subparsers.add_parser('test', help='Run tests')
     parser_test.set_defaults(subcommand='test')
 
@@ -301,6 +320,9 @@ def main():
         rows = delete(metadata, db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run, comparison_operators=comparison_operators)
         _print_rows(rows, delimiter=args.delimiter,
                     keys=None if args.output_columns is None else args.output_columns.split(','))
+
+    elif args.subcommand == 'merge':
+        merge(args.input, args.db, wd=args.wd)
 
     elif args.subcommand == 'test':
         import pytest
