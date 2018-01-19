@@ -130,7 +130,12 @@ def _make_expression_vals(metadata, comparison_operators):
     keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
     search_strs = []
     if len(keys) > 0:
-        search_strs.append(" and ".join(["{}{}?".format(key, comparison_operators.get(key, '=')) for key in keys]))
+        for key in keys:
+            op = comparison_operators.get(key, '=')
+            if op in ['!=', '<>']:
+                search_strs.append('({}{}? or {} is null)'.format(key, op, key))
+            else:
+                search_strs.append('{}{}?'.format(key, op))
     if len(null_keys) > 0:
         search_strs.append(" and ".join(["{} {} null".format(key, _NULL_OP_MAP[comparison_operators.get(key, '=')]) for key in null_keys]))
     expr = " and ".join(search_strs)
