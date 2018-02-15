@@ -126,23 +126,33 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
     return filename
 
 
-def _make_expression_vals(metadata, comparison_operators):
+def _parse_key(key, comparison_operators, parse_exclamation):
+    if parse_exclamation and key[-1] == '!':
+        key = key[:-1]
+        default_op = '!='
+    else:
+        default_op = '='
+    return key, comparison_operators.get(key, default_op)
+
+
+def _make_expression_vals(metadata, comparison_operators, parse_exclamation):
     keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
     search_strs = []
     if len(keys) > 0:
         for key in keys:
-            op = comparison_operators.get(key, '=')
+            key, op = _parse_key(key, comparison_operators, parse_exclamation)
             if op in ['!=', '<>']:
                 search_strs.append('({}{}? or {} is null)'.format(key, op, key))
             else:
                 search_strs.append('{}{}?'.format(key, op))
     if len(null_keys) > 0:
-        search_strs.append(" and ".join(["{} {} null".format(key, _NULL_OP_MAP[comparison_operators.get(key, '=')]) for key in null_keys]))
+        nullkey_ops = [_parse_key(key, comparison_operators, parse_exclamation) for key in null_keys]
+        search_strs.append(" and ".join(["{} {} null".format(key, _NULL_OP_MAP[op]) for key, op in nullkey_ops]))
     expr = " and ".join(search_strs)
     return expr, vals
 
 
-def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, comparison_operators=None):
+def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, comparison_operators=None, parse_exclamation=False):
     if comparison_operators is None:
         comparison_operators = {}
     if not os.path.exists(os.path.join(wd, db)):
@@ -150,7 +160,7 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         if len(metadata) > 0:
-            expr, vals = _make_expression_vals(metadata, comparison_operators)
+            expr, vals = _make_expression_vals(metadata, comparison_operators, parse_exclamation)
             query_string = "select * from filelist where " + expr
             rows = conn.execute(query_string, vals).fetchall()
         else:
