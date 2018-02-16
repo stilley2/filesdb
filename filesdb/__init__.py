@@ -126,6 +126,37 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
     return filename
 
 
+def _add_many(metadatalist, db="files.db", wd='.', timeout=10):
+    keys = set()
+    for metadata in metadatalist:
+        if 'filename' not in metadata.keys():
+            raise ValueError('metadata must contain filename to use _add_many')
+        if 'time' not in metadata.keys():
+            raise ValueError('metadata must contain time to use _add_many')
+        for key in metadata.keys():
+            keys.add(key)
+    keys = list(keys)
+    conn = _get_conn(db, wd, timeout=timeout)
+    with conn:
+        desc = conn.execute("select * from filelist").description
+        columns = [d[0] for d in desc]
+        for key in keys:
+            if key not in columns:
+                try:
+                    conn.execute("alter table filelist add {} NUMERIC".format(key))
+                except sqlite3.OperationalError:
+                    # column already exists. possible due to race condition between populating
+                    # columns variable and adding the new column
+                    pass
+        vals = []
+        for metadata in metadatalist:
+            tmplist = []
+            for key in keys:
+                tmplist.append(metadata.get(key, None))
+            vals.append(tmplist)
+        conn.executemany("insert into filelist (" + ', '.join(keys) + ") values (" + ', '.join(["?"] * len(keys)) + ")", vals)
+
+
 def _parse_key(key, comparison_operators, parse_exclamation):
     if parse_exclamation and key[-1] == '!':
         key = key[:-1]
@@ -186,12 +217,14 @@ def merge(indb, outdb, wd='.'):
     fnamesout = {r['filename'] for r in rowsout}
     rowsindict = {r['filename']: r for r in rowsin}
 
+    metadatalist = []
     for fname, row in rowsindict.items():
         if fname in fnamesout:
             if not _cmprows(row, rowsoutdict[fname]):
                 raise RuntimeError('{} detected in output database, but with different rows'.format(fname))
         else:
-            add(dict(row), db=outdb, wd=wd, copy_mode=True)
+            metadatalist.append(dict(row))
+    _add_many(metadatalist, db=outdb, wd=wd)
 
 
 def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='hardlink'):

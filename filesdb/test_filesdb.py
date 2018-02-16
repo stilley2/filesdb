@@ -525,3 +525,21 @@ def test_merge(tmpdir):
     filesdb.add(dict(hi=100), db=out, wd=str(tmpdir), filename='1')
     with pytest.raises(subprocess.CalledProcessError):
         subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
+
+
+def test_add_many(tmpdir):
+    filesdb._add_many([{'filename': 'test1.txt', 'time': 1000, 'param': 3},
+                       {'filename': 'test2.txt', 'time': 1000, 'param': 4}],
+                      wd=str(tmpdir))
+
+    rows = filesdb.search({}, wd=str(tmpdir))
+    assert rows[0]['filename'] == 'test1.txt'
+    assert rows[0]['time'] == 1000
+    assert rows[0]['param'] == 3
+    assert rows[1]['filename'] == 'test2.txt'
+    assert rows[1]['time'] == 1000
+    assert rows[1]['param'] == 4
+    with pytest.raises(ValueError):
+        filesdb._add_many([{'time': 1000, 'param': 3}], wd=str(tmpdir))
+    with pytest.raises(ValueError):
+        filesdb._add_many([{'filename': 'test1.txt', 'param': 3}], wd=str(tmpdir))
