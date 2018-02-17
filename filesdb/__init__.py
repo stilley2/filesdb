@@ -6,6 +6,7 @@ import datetime
 import filecmp
 import hashlib
 import os
+import shutil
 import sqlite3
 
 

@@ -363,7 +363,7 @@ def test_repr_html(tmpdir):
     out._repr_html_()
 
 
-def test_copy(tmpdir):
+def test_copy_hardlink(tmpdir):
     indir = os.path.join(str(tmpdir), 'indir')
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
@@ -416,7 +416,7 @@ def test_copy(tmpdir):
         filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
 
-def test_copy_newcol(tmpdir):
+def test_copy_hardlink_newcol(tmpdir):
     indir = os.path.join(str(tmpdir), 'indir')
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
@@ -428,6 +428,75 @@ def test_copy_newcol(tmpdir):
         f.write('test')
 
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+    filesdb.add(dict(field1="two", field2="three"), wd=indir)
+    filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
+
+
+def test_copy_copy(tmpdir):
+    indir = os.path.join(str(tmpdir), 'indir')
+    os.mkdir(indir)
+    outdir = os.path.join(str(tmpdir), 'outdir')
+    os.mkdir(outdir)
+    fname = filesdb.add(dict(field1="one"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+
+    with open(infname, 'w') as f:
+        f.write('test')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='copy')
+
+    assert filecmp.cmp(infname, outfname)
+    assert os.stat(infname, follow_symlinks=False).st_ino != os.stat(outfname, follow_symlinks=False).st_ino
+
+    inrows = filesdb.search({}, wd=indir)
+    outrows = filesdb.search({}, wd=outdir)
+    assert len(inrows) == 1
+    assert len(outrows) == 1
+    assert inrows[0] == outrows[0]
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='copy')
+
+    fname = filesdb.add(dict(field1="two"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+    with open(infname, 'w') as f:
+        f.write('test2')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='copy')
+    assert filecmp.cmp(infname, outfname)
+    assert os.stat(infname, follow_symlinks=False).st_ino != os.stat(outfname, follow_symlinks=False).st_ino
+
+    fname = filesdb.add(dict(field1="three"), wd=indir)
+    filesdb.add(dict(field1="four"), wd=outdir, filename=fname)
+
+    with pytest.raises(RuntimeError):
+        filesdb.copy(fname, outdir, wd=indir, copytype='copy')
+
+    fname = filesdb.add(dict(field1="five"), wd=indir)
+    infname = os.path.join(indir, fname)
+    outfname = os.path.join(outdir, fname)
+    with open(infname, 'w') as f:
+        f.write('test')
+    with open(outfname, 'w') as f:
+        f.write('test2')
+
+    with pytest.raises(RuntimeError):
+        filesdb.copy(fname, outdir, wd=indir, copytype='copy')
+
+
+def test_copy_copy_newcol(tmpdir):
+    indir = os.path.join(str(tmpdir), 'indir')
+    os.mkdir(indir)
+    outdir = os.path.join(str(tmpdir), 'outdir')
+    os.mkdir(outdir)
+    fname = filesdb.add(dict(field1="one"), wd=indir)
+    infname = os.path.join(indir, fname)
+
+    with open(infname, 'w') as f:
+        f.write('test')
+
+    filesdb.copy(fname, outdir, wd=indir, copytype='copy')
     filesdb.add(dict(field1="two", field2="three"), wd=indir)
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
