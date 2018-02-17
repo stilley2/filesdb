@@ -6,6 +6,7 @@ import datetime
 import filecmp
 import hashlib
 import os
+import shutil
 import sqlite3
 
 
@@ -251,6 +252,8 @@ def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='ha
     else:
         if copytype == 'hardlink':
             os.link(infull, outfull)
+        elif copytype == 'copy':
+            shutil.copyfile(infull, outfull)
         else:
             raise ValueError('unsupported copytype')
 
