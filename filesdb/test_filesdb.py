@@ -94,7 +94,7 @@ def test_delete_explicit_operator(tmpdir):
     filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
-    rows = filesdb.delete(dict(field2=2), wd=str(tmpdir), comparison_operators=dict(field1='=='))
+    rows = filesdb.delete(dict(field2=2), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
     assert len(rows) == 2
 
@@ -111,7 +111,7 @@ def test_delete_explicit_ne(tmpdir):
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
     filesdb.add(dict(field1="two", field2=None, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 4
-    rows = filesdb.delete(dict(field2=2), wd=str(tmpdir), comparison_operators=dict(field2='!='))
+    rows = filesdb.delete({'field2!': 2}, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 2
     assert len(rows) == 2
     rows = filesdb.delete({'field1!': 'one'}, db=db, wd=str(tmpdir))
@@ -127,15 +127,9 @@ def test_explicit_ne_eq(tmpdir):
     filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='!='))) == 1
-    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='<>'))) == 1
-    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir), parse_exclamation=True)) == 1
-    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir), parse_exclamation=True)) == 1
+    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir))) == 1
     filesdb.add(dict(field1="one", field2=3, field3=None, field4=True, field5=None), db=db, wd=str(tmpdir))
-    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='!='))) == 2
-    assert len(filesdb.search(dict(field3=3.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='<>'))) == 2
-    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir), parse_exclamation=True)) == 2
-    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir), parse_exclamation=True)) == 2
+    assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir))) == 2
 
 
 def test_explicit_e_eq(tmpdir):
@@ -143,19 +137,18 @@ def test_explicit_e_eq(tmpdir):
     filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='='))) == 1
-    assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir), comparison_operators=dict(field3='=='))) == 1
+    assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir))) == 1
 
 
 def test_make_expression_vals():
     metadata = OrderedDict(field1="one", field2="2", field3=3, field4=None)
-    assert filesdb._make_expression_vals(metadata, dict(), False)[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals(metadata, dict(field1='=', field2='=', field3='=', field4='='), False)[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals({'field1': 'one', 'field2': '2', 'field3': 3, 'field4': None}, {}, True)[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals(metadata, dict(field1='==', field2='==', field3='==', field4='=='), False)[0] == "field1==? and field2==? and field3==? and field4 is null"
-    assert filesdb._make_expression_vals(metadata, dict(field1='!=', field2='!=', field3='!=', field4='!='), False)[0] == "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
-    assert filesdb._make_expression_vals({'field1!': 'one', 'field2!': '2', 'field3!': 3, 'field4!': None}, {}, True)[0] ==  "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
-    assert filesdb._make_expression_vals(metadata, dict(field1='<>', field2='<>', field3='<>', field4='<>'), False)[0] == "(field1<>? or field1 is null) and (field2<>? or field2 is null) and (field3<>? or field3 is null) and field4 is not null"
+    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert filesdb._make_expression_vals({'field1': 'one', 'field2': '2', 'field3': 3, 'field4': None})[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    metadata = {'field1!': "one", 'field2!': "2", 'field3!': 3, 'field4!': None}
+    assert filesdb._make_expression_vals(metadata)[0] == "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
+    assert filesdb._make_expression_vals({'field1!': 'one', 'field2!': '2', 'field3!': 3, 'field4!': None})[0] ==  "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
 
 
 def test_search(tmpdir):
@@ -165,50 +158,28 @@ def test_search(tmpdir):
     rows = filesdb.search(dict(field5=5, field2=2), wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
-    rows = filesdb.search(dict(field5=5), wd=tmpdir, comparison_operators=dict(field5='<>'))
-    assert len(rows) == 1
-    rows = filesdb.search({'field5!': 5}, wd=tmpdir, parse_exclamation=True)
+    rows = filesdb.search({'field5!': 5}, wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '2'
-    rows = filesdb.search(dict(field5=6), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    rows = filesdb.search({'field5!': 6}, wd=tmpdir)
     assert len(rows) == 2
     assert rows[0]['filename'] == '1'
     assert rows[1]['filename'] == '3'
-    rows = filesdb.search({'field5!': 6}, wd=tmpdir, parse_exclamation=True)
-    assert len(rows) == 2
-    assert rows[0]['filename'] == '1'
-    assert rows[1]['filename'] == '3'
-    rows = filesdb.search(dict(field5=6, field2=2), wd=tmpdir, comparison_operators=dict(field5='<>'))
+    rows = filesdb.search({'field5!': 6, 'field2': 2}, wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
-    rows = filesdb.search({'field5!': 6, 'field2': 2}, wd=tmpdir, parse_exclamation=True)
-    assert len(rows) == 1
-    assert rows[0]['filename'] == '1'
-    rows = filesdb.search(dict(field6=None), wd=tmpdir, comparison_operators=dict(field6='<>'))
+    rows = filesdb.search({'field6!': None}, wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '3'
-    rows = filesdb.search({'field6!': None}, wd=tmpdir, parse_exclamation=True)
-    assert len(rows) == 1
-    assert rows[0]['filename'] == '3'
-    rows = filesdb.search(dict(field6=None, field5=6), wd=tmpdir, comparison_operators=dict(field5='<>'))
-    assert len(rows) == 1
-    assert rows[0]['filename'] == '1'
-    rows = filesdb.search({'field6': None, 'field5!': 6}, wd=tmpdir, parse_exclamation=True)
+    rows = filesdb.search({'field6': None, 'field5!': 6}, wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
     filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5, field6=7), wd=tmpdir, filename='4')
-    rows = filesdb.search(dict(field6=None), wd=tmpdir, comparison_operators=dict(field6='<>'))
+    rows = filesdb.search({'field6!': None}, wd=tmpdir)
     assert len(rows) == 2
     assert rows[0]['filename'] == '3'
     assert rows[1]['filename'] == '4'
-    rows = filesdb.search({'field6!': None}, wd=tmpdir, parse_exclamation=True)
-    assert len(rows) == 2
-    assert rows[0]['filename'] == '3'
-    assert rows[1]['filename'] == '4'
-    rows = filesdb.search(dict(field6=None, field2=3), wd=tmpdir, comparison_operators=dict(field6='<>', field2='!='))
-    assert len(rows) == 1
-    assert rows[0]['filename'] == '4'
-    rows = filesdb.search({'field6!': None, 'field2!': 3}, wd=tmpdir, parse_exclamation=True)
+    rows = filesdb.search({'field6!': None, 'field2!': 3}, wd=tmpdir)
     assert len(rows) == 1
     assert rows[0]['filename'] == '4'
 
@@ -335,15 +306,10 @@ def test_add_cmd_fail(tmpdir):
 
 
 def test_parse_metadata():
-    metadata, co = filesdb._parse_metadata(['field1=1', 'field2==2', 'field3!=3', 'field4<>4'])
+    metadata = filesdb._parse_metadata(['field1=1', 'field2=None', 'field3!=3'])
     assert metadata['field1'] == '1'
-    assert metadata['field2'] == '2'
-    assert metadata['field3'] == '3'
-    assert metadata['field4'] == '4'
-    assert co['field1'] == '='
-    assert co['field2'] == '=='
-    assert co['field3'] == '!='
-    assert co['field4'] == '<>'
+    assert metadata['field2'] is None
+    assert metadata['field3!'] == '3'
     with pytest.raises(ValueError):
         filesdb._parse_metadata(['field1'])
     with pytest.raises(ValueError):

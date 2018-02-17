@@ -112,6 +112,8 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
         desc = conn.execute("select * from filelist").description
         columns = [d[0] for d in desc]
         for key in metadata.keys():
+            if key[-1] == '!':
+                raise ValueError('key {} ends in !'.format(key))
             if key not in columns:
                 try:
                     conn.execute("alter table filelist add {} NUMERIC".format(key))
@@ -157,41 +159,39 @@ def _add_many(metadatalist, db="files.db", wd='.', timeout=10):
         conn.executemany("insert into filelist (" + ', '.join(keys) + ") values (" + ', '.join(["?"] * len(keys)) + ")", vals)
 
 
-def _parse_key(key, comparison_operators, parse_exclamation):
-    if parse_exclamation and key[-1] == '!':
+def _parse_key(key):
+    if key[-1] == '!':
         key = key[:-1]
-        default_op = '!='
+        op = '!='
     else:
-        default_op = '='
-    return key, comparison_operators.get(key, default_op)
+        op = '='
+    return key, op
 
 
-def _make_expression_vals(metadata, comparison_operators, parse_exclamation):
+def _make_expression_vals(metadata):
     keys, vals, null_keys = _key_val_list(metadata, separate_nulls=True)
     search_strs = []
     if len(keys) > 0:
         for key in keys:
-            key, op = _parse_key(key, comparison_operators, parse_exclamation)
+            key, op = _parse_key(key)
             if op in ['!=', '<>']:
                 search_strs.append('({}{}? or {} is null)'.format(key, op, key))
             else:
                 search_strs.append('{}{}?'.format(key, op))
     if len(null_keys) > 0:
-        nullkey_ops = [_parse_key(key, comparison_operators, parse_exclamation) for key in null_keys]
+        nullkey_ops = [_parse_key(key) for key in null_keys]
         search_strs.append(" and ".join(["{} {} null".format(key, _NULL_OP_MAP[op]) for key, op in nullkey_ops]))
     expr = " and ".join(search_strs)
     return expr, vals
 
 
-def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, comparison_operators=None, parse_exclamation=False):
-    if comparison_operators is None:
-        comparison_operators = {}
+def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False):
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         if len(metadata) > 0:
-            expr, vals = _make_expression_vals(metadata, comparison_operators, parse_exclamation)
+            expr, vals = _make_expression_vals(metadata)
             query_string = "select * from filelist where " + expr
             rows = conn.execute(query_string, vals).fetchall()
         else:
@@ -251,18 +251,20 @@ def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='ha
     else:
         if copytype == 'hardlink':
             os.link(infull, outfull)
+        elif copytype == 'copy':
+            shutil.copyfile(infull, outfull)
         else:
             raise ValueError('unsupported copytype')
 
 
-def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t', comparison_operators=None):
+def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter='\t'):
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     if len(metadata) == 0:
         raise ValueError("must have at least one search parameter")
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        rows = search(metadata, db=db, wd=wd, timeout=timeout, comparison_operators=comparison_operators)
+        rows = search(metadata, db=db, wd=wd, timeout=timeout)
         if len(rows) > 0:
             if not dryrun:
                 for r in rows:
@@ -277,24 +279,17 @@ def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter=
 
 def _parse_metadata(metadatalist):
     metadata = {}
-    comparison_operators = {}
     for entry in metadatalist:
-        for operator in ['==', '!=', '=', '<>']:
-            split_entry = entry.split(operator)
-            if len(split_entry) not in [1, 2]:
-                raise ValueError('invalid metadata term: {}'.format(entry))
-            if len(split_entry) == 2:
-                key, val = split_entry
-                val.strip()
-                if val == 'None':
-                    val = None
-                metadata[key.strip()] = val
-                comparison_operators[key.strip()] = operator
-                break
-        else:
-            raise ValueError('no suitable operator found in metadata term: {}'.format(entry))
+        split_entry = entry.split('=')
+        if len(split_entry) != 2:
+            raise ValueError('invalid metadata term: {}'.format(entry))
+        key, val = split_entry
+        val.strip()
+        if val == 'None':
+            val = None
+        metadata[key.strip()] = val
 
-    return metadata, comparison_operators
+    return metadata
 
 
 def _print_rows(rows, delimiter='\t', keys=None):
@@ -350,22 +345,19 @@ def main():
         parser.print_help()
 
     elif args.subcommand == 'search':
-        metadata, comparison_operators = _parse_metadata(args.metadata)
-        _print_rows(search(metadata, db=args.db, wd=args.wd, timeout=args.timeout, comparison_operators=comparison_operators), delimiter=args.delimiter,
+        metadata = _parse_metadata(args.metadata)
+        _print_rows(search(metadata, db=args.db, wd=args.wd, timeout=args.timeout), delimiter=args.delimiter,
                     keys=None if args.output_columns is None else args.output_columns.split(','))
 
     elif args.subcommand == 'add':
-        metadata, comparison_operators = _parse_metadata(args.metadata)
-        for operator in comparison_operators.values():
-            if operator not in ['=', '==']:
-                raise ValueError('only equality operators allowed for add')
+        metadata = _parse_metadata(args.metadata)
         filename = add(metadata, db=args.db, wd=args.wd, filename=args.filename, timeout=args.timeout, ext=args.ext,
                        prefix=args.prefix, suffix=args.suffix)
         print(filename)
 
     elif args.subcommand == 'delete':
-        metadata, comparison_operators = _parse_metadata(args.metadata)
-        rows = delete(metadata, db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run, comparison_operators=comparison_operators)
+        metadata = _parse_metadata(args.metadata)
+        rows = delete(metadata, db=args.db, wd=args.wd, timeout=args.timeout, dryrun=args.dry_run)
         _print_rows(rows, delimiter=args.delimiter,
                     keys=None if args.output_columns is None else args.output_columns.split(','))
 
