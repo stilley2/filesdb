@@ -228,7 +228,7 @@ def merge(indb, outdb, wd='.'):
     _add_many(metadatalist, db=outdb, wd=wd)
 
 
-def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='hardlink'):
+def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='copy'):
     rowin = search({'filename': filename}, db=db, wd=wd)
     assert len(rowin) == 1
     rowin = rowin[0]
