@@ -578,3 +578,8 @@ def test_add_many(tmpdir):
         filesdb._add_many([{'time': 1000, 'param': 3}], wd=str(tmpdir))
     with pytest.raises(ValueError):
         filesdb._add_many([{'filename': 'test1.txt', 'param': 3}], wd=str(tmpdir))
+
+
+def test_bad_key(tmpdir):
+    with pytest.raises(ValueError):
+        filesdb.add({'key!': 1}, wd=str(tmpdir))
