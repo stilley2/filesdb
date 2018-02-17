@@ -7,7 +7,7 @@ conditions.
 
 Keeping track of files generated in computational experiments is very important,
 and gets complicated quickly. For simple problems, using filenames is sufficient
-(e.g., `alpha-1_beta-2.txt`). However, sometimes code changes, or more paramters
+(e.g., `alpha-1_beta-2.txt`). However, sometimes code changes, or more parameters
 become important, and now filenames may look like
 `alpha-1_beta-2_delta-5_version-2.txt`, breaking your naming scheme and
 complicating any code you might have that parses file names.
@@ -74,7 +74,7 @@ or
 # python
 deleted_entries = filesdb.delete({'alpha': 0})
 ```
-This WILL delete the file from the filesystem as well as remove it from the
+This WILL delete the file from the file system as well as remove it from the
 database. The bash version will also print the deleted entries. To make sure
 that you're only deleting the files you want, delete has a dry run option, which
 prints (or returns, in the python case) the entries to be deleted but does not
@@ -88,3 +88,34 @@ or
 # python
 entries = filesdb.delete({'alpha': 0}, dryrun=True)
 ```
+
+# Advanced Features
+
+## copy
+
+The copy command copies a file and its data base entry to a new directory. For
+example:
+```python
+# python
+filesdb.copy(filename, outdir, db='files.db', wd='.', outdb='files.db')
+```
+Will copy the `${filename}` in the current directory to `${outdir}`,
+and copy its row entry to `files.db` in the current director to
+`files.db` in `${outdir}`.
+
+Note that this method does not currently have a command line interface
+
+## merge
+
+Merge one database into another.
+```bash
+# bash
+filesdb --wd='.' --db=files.db merge files2.db
+```
+or
+```python
+# python
+filesdb.merge('files2.db', 'files.db', wd='.')
+```
+will add all entries from `files2.db` to `files.db` (if they aren\'t already
+present)
