@@ -254,7 +254,7 @@ def test_search_delete_command(tmpdir):
     rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5=5', 'field2=2']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5<>5']).decode()
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=5']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
     rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6']).decode()
@@ -264,10 +264,10 @@ def test_search_delete_command(tmpdir):
     rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6', 'field2=2']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6<>None']).decode()
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '3'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6==None', 'field5!=6']).decode()
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6=None', 'field5!=6']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
     subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=4', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5', 'field6=7'])
@@ -286,14 +286,14 @@ def test_search_delete_command(tmpdir):
     assert rows.split('\n')[1].split()[0] == '2'
     assert rows.split('\n')[2].split()[0] == '3'
     assert rows.split('\n')[3].split()[0] == '4'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field6<>None']).decode()
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field6!=None']).decode()
     assert rows.count('\n') == 3
     assert rows.split('\n')[1].split()[0] == '3'
     assert rows.split('\n')[2].split()[0] == '4'
     rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1<>None']).decode()
+    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1!=None']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
     rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
