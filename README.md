@@ -31,7 +31,7 @@ values of a and b. You can also specify the filename yourself:
 
 | Bash | Python |
 | - | - |
-| `filename=$(filesdb add --filename=myfile.txt a=${a} b=${b})` | `filesdb.add({'a': a, 'b': b}, filename='myfile.txt')` |
+| `filesdb add --filename=myfile.txt a=${a} b=${b}` | `filesdb.add({'a': a, 'b': b}, filename='myfile.txt')` |
 
 Note that keys cannot end in "!".
 
