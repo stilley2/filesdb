@@ -41,6 +41,7 @@ or using the python interface
 # python
 filename = filesdb.add({'alpha': alpha, 'beta': beta}, filename='myfile.txt')
 ```
+Note that keys cannot end in "!".
 
 To list all the files with alpha=`${alpha}`
 ```bash
@@ -90,6 +91,20 @@ entries = filesdb.delete({'alpha': 0}, dryrun=True)
 ```
 
 # Advanced Features
+
+## not equal comparisons
+
+Both search and delete support "not equal" comparisons.
+```bash
+# bash
+filesdb search alpha!=${alpha}
+```
+or
+```python
+# python
+entries = filesdb.search({'alpha!': alpha})
+```
+Note that this syntax prevents keys from ending in "!".
 
 ## copy
 
