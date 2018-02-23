@@ -130,6 +130,8 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
 
 
 def _add_many(metadatalist, db="files.db", wd='.', timeout=10):
+    if len(metadatalist) == 0:
+        return
     keys = set()
     for metadata in metadatalist:
         if 'filename' not in metadata.keys():
