@@ -2,6 +2,7 @@
 
 filesdb is a simple utility to of files generated under different experimental
 conditions.
+The Riot room address for this project is `#filesdb:matrix.org`.
 
 # Motivation
 
