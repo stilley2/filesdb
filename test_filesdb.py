@@ -7,6 +7,11 @@ import sqlite3
 import subprocess
 
 import filesdb
+from filesdb._filesdb import _make_expression_vals
+from filesdb._filesdb import _hash_metadata
+from filesdb._filesdb import _parse_metadata
+from filesdb._filesdb import _cmprows
+from filesdb._filesdb import _add_many
 
 
 def test_file_exists(tmpdir):
@@ -142,13 +147,13 @@ def test_explicit_e_eq(tmpdir):
 
 def test_make_expression_vals():
     metadata = OrderedDict(field1="one", field2="2", field3=3, field4=None)
-    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals({'field1': 'one', 'field2': '2', 'field3': 3, 'field4': None})[0] == "field1=? and field2=? and field3=? and field4 is null"
-    assert filesdb._make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert _make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert _make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert _make_expression_vals({'field1': 'one', 'field2': '2', 'field3': 3, 'field4': None})[0] == "field1=? and field2=? and field3=? and field4 is null"
+    assert _make_expression_vals(metadata)[0] == "field1=? and field2=? and field3=? and field4 is null"
     metadata = {'field1!': "one", 'field2!': "2", 'field3!': 3, 'field4!': None}
-    assert filesdb._make_expression_vals(metadata)[0] == "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
-    assert filesdb._make_expression_vals({'field1!': 'one', 'field2!': '2', 'field3!': 3, 'field4!': None})[0] ==  "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
+    assert _make_expression_vals(metadata)[0] == "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
+    assert _make_expression_vals({'field1!': 'one', 'field2!': '2', 'field3!': 3, 'field4!': None})[0] == "(field1!=? or field1 is null) and (field2!=? or field2 is null) and (field3!=? or field3 is null) and field4 is not null"
 
 
 def test_search(tmpdir):
@@ -208,15 +213,15 @@ def test_str_numeric_equivalence(tmpdir):
 
 
 def test_hash():
-    h1 = filesdb._hash_metadata({'test1': 2, 'hi': True, 'string': 'a'})
-    h2 = filesdb._hash_metadata({'test1': 2, 'hi': False, 'string': 'a'})
-    h3 = filesdb._hash_metadata({'test1': 2, 'string': 'a', 'hi': False})
+    h1 = _hash_metadata({'test1': 2, 'hi': True, 'string': 'a'})
+    h2 = _hash_metadata({'test1': 2, 'hi': False, 'string': 'a'})
+    h3 = _hash_metadata({'test1': 2, 'string': 'a', 'hi': False})
     assert h1 != h2
     assert h2 == h3
-    h4 = filesdb._hash_metadata({'test1': 2.0, 'hi': False, 'string': 'a'})
-    h5 = filesdb._hash_metadata({'test1': '2.0', 'hi': False, 'string': 'a'})
-    h6 = filesdb._hash_metadata({'test1': '2', 'hi': False, 'string': 'a'})
-    h7 = filesdb._hash_metadata({'test1': '2e0', 'hi': False, 'string': 'a'})
+    h4 = _hash_metadata({'test1': 2.0, 'hi': False, 'string': 'a'})
+    h5 = _hash_metadata({'test1': '2.0', 'hi': False, 'string': 'a'})
+    h6 = _hash_metadata({'test1': '2', 'hi': False, 'string': 'a'})
+    h7 = _hash_metadata({'test1': '2e0', 'hi': False, 'string': 'a'})
     assert h4 == h3
     assert h5 == h3
     assert h6 == h3
@@ -224,100 +229,100 @@ def test_hash():
 
 
 def test_cmd(tmpdir):
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=one', 'field2=2'])
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 2
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=one', 'field2=3'])
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 3
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=two', 'field2=2'])
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 4
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=two']).decode().count('\n') == 2
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=one']).decode().count('\n') == 3
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=2']).decode().count('\n') == 3
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=3']).decode().count('\n') == 2
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', '--dry_run', 'field1=one']).decode().count('\n') == 3
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', '-n', 'field1=one']).decode().count('\n') == 3
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1=one'])
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=one']).decode().count('\n') == 0
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=3']).decode().count('\n') == 0
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=2']).decode().count('\n') == 2
-    assert os.path.splitext(subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--ext=.txt', 'field2=2']).decode().strip())[1] == '.txt'
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=hi.txt', 'field2=2']).decode().strip() == 'hi.txt'
-    fname = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--prefix=hi', '--suffix=there', '--ext=.hdf5', 'field2=2']).decode().strip()
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=one', 'field2=2'])
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 2
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=one', 'field2=3'])
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 3
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=two', 'field2=2'])
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode().count('\n') == 4
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=two']).decode().count('\n') == 2
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=one']).decode().count('\n') == 3
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=2']).decode().count('\n') == 3
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=3']).decode().count('\n') == 2
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', '--dry_run', 'field1=one']).decode().count('\n') == 3
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', '-n', 'field1=one']).decode().count('\n') == 3
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1=one'])
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field1=one']).decode().count('\n') == 0
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=3']).decode().count('\n') == 0
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field2=2']).decode().count('\n') == 2
+    assert os.path.splitext(subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--ext=.txt', 'field2=2']).decode().strip())[1] == '.txt'
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=hi.txt', 'field2=2']).decode().strip() == 'hi.txt'
+    fname = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--prefix=hi', '--suffix=there', '--ext=.hdf5', 'field2=2']).decode().strip()
     assert fname[:2] == 'hi'
     assert fname[-10:] == 'there.hdf5'
 
 
 def test_search_delete_command(tmpdir):
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=1', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5'])
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=2', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=6'])
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=3', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=5', 'field6=6'])
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5=5', 'field2=2']).decode()
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=1', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5'])
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=2', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=6'])
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=3', 'field1=1', 'field2=3', 'field3=3', 'field4=4', 'field5=5', 'field6=6'])
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5=5', 'field2=2']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=5']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=5']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6']).decode()
     assert rows.count('\n') == 3
     assert rows.split('\n')[1].split()[0] == '1'
     assert rows.split('\n')[2].split()[0] == '3'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6', 'field2=2']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field5!=6', 'field2=2']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '3'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6=None', 'field5!=6']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6=None', 'field5!=6']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=4', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5', 'field6=7'])
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', '--filename=4', 'field1=1', 'field2=2', 'field3=3', 'field4=4', 'field5=5', 'field6=7'])
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None']).decode()
     assert rows.count('\n') == 3
     assert rows.split('\n')[1].split()[0] == '3'
     assert rows.split('\n')[2].split()[0] == '4'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None', 'field2!=3']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search', 'field6!=None', 'field2!=3']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '4'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field5=5', 'field2=2', 'field6=None']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field5=5', 'field2=2', 'field6=None']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '1'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
     assert rows.count('\n') == 4
     assert rows.split('\n')[1].split()[0] == '2'
     assert rows.split('\n')[2].split()[0] == '3'
     assert rows.split('\n')[3].split()[0] == '4'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field6!=None']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field6!=None']).decode()
     assert rows.count('\n') == 3
     assert rows.split('\n')[1].split()[0] == '3'
     assert rows.split('\n')[2].split()[0] == '4'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1!=None']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'delete', 'field1!=None']).decode()
     assert rows.count('\n') == 2
     assert rows.split('\n')[1].split()[0] == '2'
-    rows = subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
+    rows = subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'search']).decode()
     assert rows.count('\n') == 0
 
 
 def test_add_cmd_fail(tmpdir):
     with pytest.raises(subprocess.SubprocessError):
-        subprocess.check_output(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field5!=2'])
+        subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field5!=2'])
 
 
 def test_parse_metadata():
-    metadata = filesdb._parse_metadata(['field1=1', 'field2=None', 'field3!=3'])
+    metadata = _parse_metadata(['field1=1', 'field2=None', 'field3!=3'])
     assert metadata['field1'] == '1'
     assert metadata['field2'] is None
     assert metadata['field3!'] == '3'
     with pytest.raises(ValueError):
-        filesdb._parse_metadata(['field1'])
+        _parse_metadata(['field1'])
     with pytest.raises(ValueError):
-        filesdb._parse_metadata(['field1=1=3'])
+        _parse_metadata(['field1=1=3'])
 
 
 def test_cmd_None(tmpdir):
-    subprocess.check_call(['filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=None'])
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(str(tmpdir)), 'add', 'field1=None'])
     assert len(filesdb.search(dict(field1=None), wd=str(tmpdir))) == 1
 
 
@@ -504,16 +509,16 @@ def test_copy_copy_newcol(tmpdir):
 def test_cmprows():
     r1 = dict(hi=2, there=3)
     r2 = dict(hi=2, there=3)
-    assert filesdb._cmprows(r1, r2)
+    assert _cmprows(r1, r2)
     r1 = dict(hi=2)
     r2 = dict(hi=2, there=None)
-    assert filesdb._cmprows(r1, r2)
+    assert _cmprows(r1, r2)
     r1 = dict(hi=2, there=1)
     r2 = dict(hi=2, there=None)
-    assert not filesdb._cmprows(r1, r2)
+    assert not _cmprows(r1, r2)
     r1 = dict(hi=2, there=1)
     r2 = dict(hi=2)
-    assert not filesdb._cmprows(r1, r2)
+    assert not _cmprows(r1, r2)
 
 
 def test_add_fail(tmpdir):
@@ -544,8 +549,8 @@ def test_merge(tmpdir):
     out = 'outsp.db'
     filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
     filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
-    subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
-    assert subprocess.check_output(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'search']).decode().count('\n') == 4
+    subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
+    assert subprocess.check_output(['python', '-m', 'filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'search']).decode().count('\n') == 4
 
     out = 'out2.db'
     filesdb.add(dict(hi=5), wd=str(tmpdir), db=out, filename='5')
@@ -559,13 +564,13 @@ def test_merge(tmpdir):
     filesdb.add(dict(rowitem2), db=out, wd=str(tmpdir), copy_mode=True)
     filesdb.add(dict(hi=100), db=out, wd=str(tmpdir), filename='1')
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.check_call(['filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
+        subprocess.check_call(['python', '-m', 'filesdb', '--wd={}'.format(tmpdir), '--db={}'.format(out), 'merge', in1])
 
 
 def test_add_many(tmpdir):
-    filesdb._add_many([{'filename': 'test1.txt', 'time': 1000, 'param': 3},
-                       {'filename': 'test2.txt', 'time': 1000, 'param': 4}],
-                      wd=str(tmpdir))
+    _add_many([{'filename': 'test1.txt', 'time': 1000, 'param': 3},
+               {'filename': 'test2.txt', 'time': 1000, 'param': 4}],
+              wd=str(tmpdir))
 
     rows = filesdb.search({}, wd=str(tmpdir))
     assert rows[0]['filename'] == 'test1.txt'
@@ -575,10 +580,10 @@ def test_add_many(tmpdir):
     assert rows[1]['time'] == 1000
     assert rows[1]['param'] == 4
     with pytest.raises(ValueError):
-        filesdb._add_many([{'time': 1000, 'param': 3}], wd=str(tmpdir))
+        _add_many([{'time': 1000, 'param': 3}], wd=str(tmpdir))
     with pytest.raises(ValueError):
-        filesdb._add_many([{'filename': 'test1.txt', 'param': 3}], wd=str(tmpdir))
-    filesdb._add_many([], wd=str(tmpdir))
+        _add_many([{'filename': 'test1.txt', 'param': 3}], wd=str(tmpdir))
+    _add_many([], wd=str(tmpdir))
 
 
 def test_bad_key(tmpdir):
