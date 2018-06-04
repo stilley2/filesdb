@@ -2,12 +2,12 @@ from setuptools import setup
 
 
 setup(name='filesdb',
-      version='2.1.0',
+      version='2.1.1',
       description='A simple tool for tracking files',
       author='Steven Tilley',
       author_email='steventilleyii@gmail.com',
       packages=['filesdb'],
-      entry_points={'console_scripts': ['filesdb = filesdb.__init__:main']},
+      entry_points={'console_scripts': ['filesdb = filesdb.__main__:main']},
       python_requires='>=3',
       tests_require=['pytest'],
       setup_requires=['pytest-runner'],
