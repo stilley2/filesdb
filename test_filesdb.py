@@ -590,7 +590,7 @@ def test_merge(tmpdir):
     r1 = filesdb.search({}, db=in1, wd=str(tmpdir))
     rout = filesdb.search({}, db=out, wd=str(tmpdir))
     for r in r1:
-        assert r in rout
+        assert any(_cmprows(r, rout_t) for rout_t in rout)
     assert len(rout) == 3
     assert len(filesdb.search_envs({}, wd=str(tmpdir), db=out)) == 2
 
