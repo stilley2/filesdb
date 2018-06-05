@@ -150,56 +150,56 @@ def test_explicit_e_eq(tmpdir):
 
 
 def test_make_expression_vals():
-    metadata = OrderedDict(field1="one", field2="2", field3=3, field4=None)
+    metadata = OrderedDict([('field1', "one"), ('field2', "2"), ('field3', 3), ('field4', None)])
     assert _make_expression_vals(metadata)[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null"
-    assert _make_expression_vals({'field1': 'one', 'field2': '2', 'field3': 3, 'field4': None})[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null"
-    metadata = {'field1!': "one", 'field2!': "2", 'field3!': 3, 'field4!': None}
+    assert _make_expression_vals(OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)]))[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null"
+    metadata = OrderedDict([('field1!', "one"), ('field2!', "2"), ('field3!', 3), ('field4!', None)])
     assert _make_expression_vals(metadata)[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null"
-    assert _make_expression_vals({'field1!': 'one', 'field2!': '2', 'field3!': 3, 'field4!': None})[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null"
-    metadata = OrderedDict(field1="one", field2="2", field3=3, field4=None)
-    environments = OrderedDict(field5="one", field6="2", field7=3, field8=None)
+    assert _make_expression_vals(OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)]))[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null"
+    metadata = OrderedDict([('field1', "one"), ('field2', "2"), ('field3', 3), ('field4', None)])
+    environments = OrderedDict([('field5', "one"), ('field6', "2"), ('field7', 3), ('field8', None)])
     assert _make_expression_vals(metadata, environments)[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null and environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null"
-    metadata = {'field1!': "one", 'field2!': "2", 'field3!': 3, 'field4!': None}
-    environments = {'field5!': "one", 'field6!': "2", 'field7!': 3, 'field8!': None}
+    metadata = OrderedDict([('field1!', "one"), ('field2!', "2"), ('field3!', 3), ('field4!', None)])
+    environments = OrderedDict([('field5!', "one"), ('field6!', "2"), ('field7!', 3), ('field8!', None)])
     assert _make_expression_vals(metadata, environments)[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null and (environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null"
 
 
 def test_make_expression_envs_only():
-    environments = OrderedDict(field5="one", field6="2", field7=3, field8=None)
+    environments = OrderedDict([('field5', "one"), ('field6', "2"), ('field7', 3), ('field8', None)])
     assert _make_expression_vals({}, environments)[0] == "environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null"
-    environments = {'field5!': "one", 'field6!': "2", 'field7!': 3, 'field8!': None}
+    environments = OrderedDict([('field5!', "one"), ('field6!', "2"), ('field7!', 3), ('field8!', None)])
     assert _make_expression_vals({}, environments)[0] == "(environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null"
 
 
 def test_search(tmpdir):
-    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5), wd=tmpdir, filename='1')
-    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=6), wd=tmpdir, filename='2')
-    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=5, field6=6), wd=tmpdir, filename='3')
-    rows = filesdb.search(dict(field5=5, field2=2), wd=tmpdir)
+    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5), wd=str(tmpdir), filename='1')
+    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=6), wd=str(tmpdir), filename='2')
+    filesdb.add(dict(field1=1, field2=3, field3=3, field4=4, field5=5, field6=6), wd=str(tmpdir), filename='3')
+    rows = filesdb.search(dict(field5=5, field2=2), wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
-    rows = filesdb.search({'field5!': 5}, wd=tmpdir)
+    rows = filesdb.search({'field5!': 5}, wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '2'
-    rows = filesdb.search({'field5!': 6}, wd=tmpdir)
+    rows = filesdb.search({'field5!': 6}, wd=str(tmpdir))
     assert len(rows) == 2
     assert rows[0]['filename'] == '1'
     assert rows[1]['filename'] == '3'
-    rows = filesdb.search({'field5!': 6, 'field2': 2}, wd=tmpdir)
+    rows = filesdb.search({'field5!': 6, 'field2': 2}, wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
-    rows = filesdb.search({'field6!': None}, wd=tmpdir)
+    rows = filesdb.search({'field6!': None}, wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '3'
-    rows = filesdb.search({'field6': None, 'field5!': 6}, wd=tmpdir)
+    rows = filesdb.search({'field6': None, 'field5!': 6}, wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '1'
-    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5, field6=7), wd=tmpdir, filename='4')
-    rows = filesdb.search({'field6!': None}, wd=tmpdir)
+    filesdb.add(dict(field1=1, field2=2, field3=3, field4=4, field5=5, field6=7), wd=str(tmpdir), filename='4')
+    rows = filesdb.search({'field6!': None}, wd=str(tmpdir))
     assert len(rows) == 2
     assert rows[0]['filename'] == '3'
     assert rows[1]['filename'] == '4'
-    rows = filesdb.search({'field6!': None, 'field2!': 3}, wd=tmpdir)
+    rows = filesdb.search({'field6!': None, 'field2!': 3}, wd=str(tmpdir))
     assert len(rows) == 1
     assert rows[0]['filename'] == '4'
 
