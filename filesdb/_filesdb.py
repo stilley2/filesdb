@@ -114,6 +114,8 @@ def _update_columns(conn, table, keys, coltype='NUMERIC'):
 
 
 def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', prefix='', suffix='', copy_mode=False, environment=None):
+    if len(metadata) == 0:
+        raise ValueError('metadata must not be empty')
     if filename and (ext or prefix or suffix):
         raise ValueError('ext, prefix, and suffix cannot be specified if filename is specified')
     if copy_mode:
