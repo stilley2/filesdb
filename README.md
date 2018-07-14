@@ -102,3 +102,21 @@ Merge one database into another.
 
 will add all entries from `files2.db` to `files.db` (if they aren\'t already
 present)
+
+## Environments
+
+For values that are mostly the same for every experiment (e.g., the versions of
+each software package used), filesdb supports a separate environment dictionary.
+(Internally, this is stored as a separate table, with an identifying environment
+hash value in the main table.)
+
+    filesdb.add({'a': a, 'b': b}, filename='myfile.txt',
+                environment={'pkgname1': '0.1.1', pkgname2: '2.1.0'})
+
+To return environment data with search results (via a JOIN):
+
+    filesdb.search({}, with_environments=True)
+
+To search based on environment values:
+
+    filesdb.search({}, environment={'pkgname1': '0.1.1'})
