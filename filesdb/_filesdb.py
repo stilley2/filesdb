@@ -20,7 +20,7 @@ __all__ = ['Row', 'RowList', 'add', 'merge', 'copy', 'delete', 'search', 'search
 # https://stackoverflow.com/questions/1535327/how-to-print-a-class-or-objects-of-class-using-print
 
 
-RESERVED_KEYS = "filename", "time"
+RESERVED_KEYS = 'filename', 'time'
 _NULL_OP_MAP = {'=': 'is', '==': 'is', '!=': 'is not', '<>': 'is not'}
 
 
@@ -71,8 +71,8 @@ def _get_conn(db, wd, timeout=10):
     conn = sqlite3.connect(os.path.join(wd, db), timeout=timeout)
     conn.row_factory = Row
     with conn:
-        conn.execute("create table if not exists filelist (filename text primary key not null, time timestamp, envhash text)")
-        conn.execute("create table if not exists environments (envhash text primary key not null)")
+        conn.execute('create table if not exists filelist (filename text primary key not null, time timestamp, envhash text)')
+        conn.execute('create table if not exists environments (envhash text primary key not null)')
         _update_columns(conn, 'filelist', ['envhash'])
     return conn
 
@@ -99,21 +99,21 @@ def _hash_metadata(metadata, envhash=None):
 
 
 def _update_columns(conn, table, keys, coltype='NUMERIC'):
-    desc = conn.execute("select * from {}".format(table)).description
+    desc = conn.execute('select * from {}'.format(table)).description
     columns = [d[0] for d in desc]
     for key in keys:
         if key[-1] == '!':
             raise ValueError('key {} ends in !'.format(key))
         if key not in columns:
             try:
-                conn.execute("alter table {} add {} {}".format(table, key, coltype))
+                conn.execute('alter table {} add {} {}'.format(table, key, coltype))
             except sqlite3.OperationalError:
                 # column already exists. possible due to race condition between populating
                 # columns variable and adding the new column
                 pass
 
 
-def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', prefix='', suffix='', copy_mode=False, environment=None):
+def add(metadata, db='files.db', wd='.', filename=None, timeout=10, ext='', prefix='', suffix='', copy_mode=False, environment=None):
     if len(metadata) == 0:
         raise ValueError('metadata must not be empty')
     if filename and (ext or prefix or suffix):
@@ -132,7 +132,7 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
         currtime = datetime.datetime.now()
         for reserved_key in RESERVED_KEYS:
             if reserved_key in metadata.keys():
-                raise ValueError("{} is reserved".format(reserved_key))
+                raise ValueError('{} is reserved'.format(reserved_key))
     if environment is not None and len(environment) > 0:
         hash_ = _add_environment(environment, db=db, wd=wd, timeout=timeout, copy_mode=copy_mode)
     else:
@@ -143,11 +143,11 @@ def add(metadata, db="files.db", wd='.', filename=None, timeout=10, ext='', pref
         keys, vals = _key_val_list(metadata)
         if filename is None:
             filename = '{}{}{}{}'.format(prefix, _hash_metadata(metadata, envhash=hash_), suffix, ext)
-        conn.execute("insert into filelist (filename, time, envhash, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 3)) + ")", [filename, currtime, hash_] + vals)
+        conn.execute('insert into filelist (filename, time, envhash, ' + ', '.join(keys) + ') values (' + ', '.join(['?'] * (len(vals) + 3)) + ')', [filename, currtime, hash_] + vals)
     return filename
 
 
-def _add_environment(metadata, db="files.db", wd='.', timeout=10, copy_mode=False):
+def _add_environment(metadata, db='files.db', wd='.', timeout=10, copy_mode=False):
 
     if copy_mode:
         metadata = metadata.copy()
@@ -164,11 +164,11 @@ def _add_environment(metadata, db="files.db", wd='.', timeout=10, copy_mode=Fals
         with conn:
             _update_columns(conn, 'environments', metadata.keys())
             keys, vals = _key_val_list(metadata)
-            conn.execute("insert into environments (envhash, " + ', '.join(keys) + ") values (" + ', '.join(["?"] * (len(vals) + 1)) + ")", [hash_] + vals)
+            conn.execute('insert into environments (envhash, ' + ', '.join(keys) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
     return hash_
 
 
-def _add_many(metadatalist, tablename='filelist', db="files.db", wd='.', timeout=10):
+def _add_many(metadatalist, tablename='filelist', db='files.db', wd='.', timeout=10):
     if len(metadatalist) == 0:
         return
     keys = set()
@@ -185,7 +185,7 @@ def _add_many(metadatalist, tablename='filelist', db="files.db", wd='.', timeout
             for key in keys:
                 tmplist.append(metadata.get(key, None))
             vals.append(tmplist)
-        conn.executemany("insert into {} (".format(tablename) + ', '.join(keys) + ") values (" + ', '.join(["?"] * len(keys)) + ")", vals)
+        conn.executemany('insert into {} ('.format(tablename) + ', '.join(keys) + ') values (' + ', '.join(['?'] * len(keys)) + ')', vals)
 
 
 def _parse_key(key):
@@ -214,23 +214,23 @@ def _make_expression_vals(metadata, environment=None):
                     search_strs.append('{table}.{key}{op}?'.format(table=table, key=key, op=op))
         if len(null_keys) > 0:
             nullkey_ops = [_parse_key(key) for key in null_keys]
-            search_strs.append(" and ".join(["{table}.{key} {op} null".format(table=table, key=key, op=_NULL_OP_MAP[op]) for key, op in nullkey_ops]))
-    expr = " and ".join(search_strs)
+            search_strs.append(' and '.join(['{table}.{key} {op} null'.format(table=table, key=key, op=_NULL_OP_MAP[op]) for key, op in nullkey_ops]))
+    expr = ' and '.join(search_strs)
     return expr, vals_out
 
 
-def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False,
+def search(metadata, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False,
            with_environments=False, environment=None):
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
-    basestr = "select * from filelist"
+    basestr = 'select * from filelist'
     if with_environments or environment is not None:
-        basestr += " inner join environments on filelist.envhash = environments.envhash"
+        basestr += ' inner join environments on filelist.envhash = environments.envhash'
     with conn:
         if len(metadata) > 0 or environment is not None:
             expr, vals = _make_expression_vals(metadata, environment)
-            query_string = basestr + " where " + expr
+            query_string = basestr + ' where ' + expr
             rows = conn.execute(query_string, vals).fetchall()
         else:
             rows = conn.execute(basestr).fetchall()
@@ -239,15 +239,15 @@ def search(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_p
     return RowList(rows)
 
 
-def search_envs(metadata, db="files.db", wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False):
+def search_envs(metadata, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False):
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     conn = _get_conn(db, wd, timeout=timeout)
-    basestr = "select * from environments"
+    basestr = 'select * from environments'
     with conn:
         if len(metadata) > 0:
             expr, vals = _make_expression_vals({}, metadata)
-            query_string = basestr + " where " + expr
+            query_string = basestr + ' where ' + expr
             rows = conn.execute(query_string, vals).fetchall()
         else:
             rows = conn.execute(basestr).fetchall()
@@ -291,7 +291,7 @@ def merge(indb, outdb, wd='.'):
     _add_many(envdatalist, db=outdb, wd=wd, tablename='environments')
 
 
-def copy(filename, outdir, db="files.db", wd='.', outdb='files.db', copytype='copy'):
+def copy(filename, outdir, db='files.db', wd='.', outdb='files.db', copytype='copy'):
     rowin = search({'filename': filename}, db=db, wd=wd)
     assert len(rowin) == 1
     rowin = rowin[0]
@@ -331,7 +331,7 @@ def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter=
     if not os.path.exists(os.path.join(wd, db)):
         raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
     if len(metadata) == 0:
-        raise ValueError("must have at least one search parameter")
+        raise ValueError('must have at least one search parameter')
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
         rows = search(metadata, db=db, wd=wd, timeout=timeout)

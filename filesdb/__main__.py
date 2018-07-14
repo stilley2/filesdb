@@ -14,7 +14,7 @@ def main():
     parser_search = subparsers.add_parser('search', help='Search database')
     parser_search.add_argument('-d', '--delimiter', type=str, default='\t', help='Output column delimiter')
     parser_search.add_argument('-o', '--output_columns', type=str, default=None, help='Comma delimited list of column names to print')
-    parser_search.add_argument('metadata', nargs='*', help='list of keys and values', metavar="KEY=VALUE")
+    parser_search.add_argument('metadata', nargs='*', help='list of keys and values', metavar='KEY=VALUE')
     parser_search.set_defaults(subcommand='search')
 
     parser_add = subparsers.add_parser('add', help=('Add file to database. If filename is not specified, ' +
@@ -23,14 +23,14 @@ def main():
     parser_add.add_argument('--prefix', type=str, default='')
     parser_add.add_argument('--suffix', type=str, default='')
     parser_add.add_argument('--ext', type=str, default='')
-    parser_add.add_argument('metadata', nargs='*', help='List of keys and values.', metavar="KEY=VALUE")
+    parser_add.add_argument('metadata', nargs='*', help='List of keys and values.', metavar='KEY=VALUE')
     parser_add.set_defaults(subcommand='add')
 
     parser_delete = subparsers.add_parser('delete', help='Delete files from database and working director')
     parser_delete.add_argument('-n', '--dry_run', action='store_true', help='Print entries to be delete, but do not delete')
     parser_delete.add_argument('-d', '--delimiter', type=str, default='\t', help='Output column delimiter for dry run')
     parser_delete.add_argument('-o', '--output_columns', type=str, default=None, help='Comma delimited list of column names to print')
-    parser_delete.add_argument('metadata', nargs='*', help='List of keys and values', metavar="KEY=VALUE")
+    parser_delete.add_argument('metadata', nargs='*', help='List of keys and values', metavar='KEY=VALUE')
     parser_delete.set_defaults(subcommand='delete')
 
     parser_merge = subparsers.add_parser('merge', help='Merge input database into --db. (input remains unchanged)')

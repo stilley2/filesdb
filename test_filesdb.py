@@ -19,44 +19,44 @@ from filesdb._filesdb import _add_environment
 
 
 def test_file_exists(tmpdir):
-    db = "files.db"
-    with open(os.path.join(str(tmpdir), "test"), "w"):
+    db = 'files.db'
+    with open(os.path.join(str(tmpdir), 'test'), 'w'):
         pass
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
     with pytest.raises(sqlite3.IntegrityError):
-        filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+        filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
 
 
 def test_duplication(tmpdir):
-    db = "files.db"
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='1')
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='2')
+    db = 'files.db'
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='1')
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir), filename='2')
 
 
 def test_multiple_adds(tmpdir):
-    db = "files.db"
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=False, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=False, field5=42), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=False, field5="some string"), db=db, wd=str(tmpdir))
+    db = 'files.db'
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=False, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=False, field5=42), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=4.0, field4=False, field5='some string'), db=db, wd=str(tmpdir))
     with pytest.raises(sqlite3.IntegrityError):
-        filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=False, field5="some string"), db=db, wd=str(tmpdir))
+        filesdb.add(dict(field1='one', field2=2, field3=4.0, field4=False, field5='some string'), db=db, wd=str(tmpdir))
     assert len(filesdb.search(dict(field1='one'), db=db, wd=str(tmpdir))) == 4
     assert len(filesdb.search(dict(field2=2), db=db, wd=str(tmpdir))) == 4
-    assert len(filesdb.search(dict(field2=2, field1="one"), db=db, wd=str(tmpdir))) == 4
+    assert len(filesdb.search(dict(field2=2, field1='one'), db=db, wd=str(tmpdir))) == 4
     assert len(filesdb.search(dict(field4=True), db=db, wd=str(tmpdir))) == 1
     assert len(filesdb.search(dict(field4=False), db=db, wd=str(tmpdir))) == 3
     assert len(filesdb.search(dict(field4=False, field5=None), db=db, wd=str(tmpdir))) == 1
     assert len(filesdb.search(dict(field5=None), db=db, wd=str(tmpdir))) == 2
     assert len(filesdb.search(dict(field5=42), db=db, wd=str(tmpdir))) == 1
-    assert len(filesdb.search(dict(field5="some string"), db=db, wd=str(tmpdir))) == 1
+    assert len(filesdb.search(dict(field5='some string'), db=db, wd=str(tmpdir))) == 1
 
 
 def test_new_column(tmpdir):
-    db = "files.db"
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None, field6='hi'), db=db, wd=str(tmpdir))
+    db = 'files.db'
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None, field6='hi'), db=db, wd=str(tmpdir))
     assert len(filesdb.search(dict(field5=None), db=db, wd=str(tmpdir))) == 2
     assert len(filesdb.search(dict(field6=None), db=db, wd=str(tmpdir))) == 1
     assert len(filesdb.search(dict(field6='hi'), db=db, wd=str(tmpdir))) == 1
@@ -80,13 +80,13 @@ def test_unsupported_type(tmpdir):
 
 def test_delete(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
-    filesdb.delete(dict(filename="test"), wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
+    filesdb.delete(dict(filename='test'), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 0
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
-    filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
     rows = filesdb.delete(dict(field2=2), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
@@ -95,13 +95,13 @@ def test_delete(tmpdir):
 
 def test_delete_explicit_operator(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
-    filesdb.delete(dict(filename="test"), wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
+    filesdb.delete(dict(filename='test'), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 0
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
-    filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
     rows = filesdb.delete(dict(field2=2), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
@@ -110,15 +110,15 @@ def test_delete_explicit_operator(tmpdir):
 
 def test_delete_explicit_ne(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
-    filesdb.delete(dict(filename="test"), wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
+    filesdb.delete(dict(filename='test'), wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 0
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, filename="test", wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, filename='test', wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 1
-    filesdb.add(dict(field1="two", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="two", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 3
-    filesdb.add(dict(field1="two", field2=None, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='two', field2=None, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 4
     rows = filesdb.delete({'field2!': 2}, wd=str(tmpdir))
     assert len(filesdb.search({}, db=db, wd=str(tmpdir))) == 2
@@ -133,42 +133,42 @@ def test_delete_explicit_ne(tmpdir):
 
 def test_explicit_ne_eq(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir))) == 1
-    filesdb.add(dict(field1="one", field2=3, field3=None, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=3, field3=None, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search({'field3!': 3.0}, db=db, wd=str(tmpdir))) == 2
 
 
 def test_explicit_e_eq(tmpdir):
     db = 'files.db'
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
-    filesdb.add(dict(field1="one", field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=3, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=2, field3=4.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     assert len(filesdb.search(dict(field3=4.0), db=db, wd=str(tmpdir))) == 1
 
 
 def test_make_expression_vals():
-    metadata = OrderedDict([('field1', "one"), ('field2', "2"), ('field3', 3), ('field4', None)])
-    assert _make_expression_vals(metadata)[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null"
-    assert _make_expression_vals(OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)]))[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null"
-    metadata = OrderedDict([('field1!', "one"), ('field2!', "2"), ('field3!', 3), ('field4!', None)])
-    assert _make_expression_vals(metadata)[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null"
-    assert _make_expression_vals(OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)]))[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null"
-    metadata = OrderedDict([('field1', "one"), ('field2', "2"), ('field3', 3), ('field4', None)])
-    environments = OrderedDict([('field5', "one"), ('field6', "2"), ('field7', 3), ('field8', None)])
-    assert _make_expression_vals(metadata, environments)[0] == "filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null and environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null"
-    metadata = OrderedDict([('field1!', "one"), ('field2!', "2"), ('field3!', 3), ('field4!', None)])
-    environments = OrderedDict([('field5!', "one"), ('field6!', "2"), ('field7!', 3), ('field8!', None)])
-    assert _make_expression_vals(metadata, environments)[0] == "(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null and (environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null"
+    metadata = OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)])
+    assert _make_expression_vals(metadata)[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null'
+    assert _make_expression_vals(OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)]))[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null'
+    metadata = OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)])
+    assert _make_expression_vals(metadata)[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null'
+    assert _make_expression_vals(OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)]))[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null'
+    metadata = OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)])
+    environments = OrderedDict([('field5', 'one'), ('field6', '2'), ('field7', 3), ('field8', None)])
+    assert _make_expression_vals(metadata, environments)[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null and environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null'
+    metadata = OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)])
+    environments = OrderedDict([('field5!', 'one'), ('field6!', '2'), ('field7!', 3), ('field8!', None)])
+    assert _make_expression_vals(metadata, environments)[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null and (environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null'
 
 
 def test_make_expression_envs_only():
-    environments = OrderedDict([('field5', "one"), ('field6', "2"), ('field7', 3), ('field8', None)])
-    assert _make_expression_vals({}, environments)[0] == "environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null"
-    environments = OrderedDict([('field5!', "one"), ('field6!', "2"), ('field7!', 3), ('field8!', None)])
-    assert _make_expression_vals({}, environments)[0] == "(environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null"
+    environments = OrderedDict([('field5', 'one'), ('field6', '2'), ('field7', 3), ('field8', None)])
+    assert _make_expression_vals({}, environments)[0] == 'environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null'
+    environments = OrderedDict([('field5!', 'one'), ('field6!', '2'), ('field7!', 3), ('field8!', None)])
+    assert _make_expression_vals({}, environments)[0] == '(environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null'
 
 
 def test_search(tmpdir):
@@ -220,11 +220,11 @@ def test_str_numeric_equivalence(tmpdir):
     filesdb.add(dict(field1=1e0, field2=5), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 5
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 5
-    filesdb.add(dict(field1="one", field2=6), wd=str(tmpdir))
+    filesdb.add(dict(field1='one', field2=6), wd=str(tmpdir))
     assert len(filesdb.search(dict(field1=1), wd=str(tmpdir))) == 5
     assert len(filesdb.search(dict(field1=1.0), wd=str(tmpdir))) == 5
-    assert len(filesdb.search(dict(field1="one"), wd=str(tmpdir))) == 1
-    assert len(filesdb.search(dict(field1="one"), wd=str(tmpdir))) == 1
+    assert len(filesdb.search(dict(field1='one'), wd=str(tmpdir))) == 1
+    assert len(filesdb.search(dict(field1='one'), wd=str(tmpdir))) == 1
 
 
 def test_hash():
@@ -375,11 +375,11 @@ def test_filename_kwargs(tmpdir):
 
 
 def test_repr_html(tmpdir):
-    db = "files.db"
-    filesdb.add(dict(field1="one", field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
+    db = 'files.db'
+    filesdb.add(dict(field1='one', field2=2, field3=3.0, field4=True, field5=None), db=db, wd=str(tmpdir))
     out = filesdb.search({}, wd=str(tmpdir))
     out._repr_html_()
-    out = filesdb.search(dict(field1="two"), wd=str(tmpdir))
+    out = filesdb.search(dict(field1='two'), wd=str(tmpdir))
     out._repr_html_()
 
 
@@ -388,7 +388,7 @@ def test_copy_hardlink(tmpdir):
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
     os.mkdir(outdir)
-    fname = filesdb.add(dict(field1="one"), wd=indir)
+    fname = filesdb.add(dict(field1='one'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
 
@@ -408,7 +408,7 @@ def test_copy_hardlink(tmpdir):
 
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
-    fname = filesdb.add(dict(field1="two"), wd=indir)
+    fname = filesdb.add(dict(field1='two'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
     with open(infname, 'w') as f:
@@ -418,13 +418,13 @@ def test_copy_hardlink(tmpdir):
     assert filecmp.cmp(infname, outfname)
     assert os.stat(infname, follow_symlinks=False).st_ino == os.stat(outfname, follow_symlinks=False).st_ino
 
-    fname = filesdb.add(dict(field1="three"), wd=indir)
-    filesdb.add(dict(field1="four"), wd=outdir, filename=fname)
+    fname = filesdb.add(dict(field1='three'), wd=indir)
+    filesdb.add(dict(field1='four'), wd=outdir, filename=fname)
 
     with pytest.raises(RuntimeError):
         filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
-    fname = filesdb.add(dict(field1="five"), wd=indir)
+    fname = filesdb.add(dict(field1='five'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
     with open(infname, 'w') as f:
@@ -441,14 +441,14 @@ def test_copy_hardlink_newcol(tmpdir):
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
     os.mkdir(outdir)
-    fname = filesdb.add(dict(field1="one"), wd=indir)
+    fname = filesdb.add(dict(field1='one'), wd=indir)
     infname = os.path.join(indir, fname)
 
     with open(infname, 'w') as f:
         f.write('test')
 
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
-    filesdb.add(dict(field1="two", field2="three"), wd=indir)
+    filesdb.add(dict(field1='two', field2='three'), wd=indir)
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
 
@@ -457,7 +457,7 @@ def test_copy_copy(tmpdir):
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
     os.mkdir(outdir)
-    fname = filesdb.add(dict(field1="one"), wd=indir)
+    fname = filesdb.add(dict(field1='one'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
 
@@ -477,7 +477,7 @@ def test_copy_copy(tmpdir):
 
     filesdb.copy(fname, outdir, wd=indir, copytype='copy')
 
-    fname = filesdb.add(dict(field1="two"), wd=indir)
+    fname = filesdb.add(dict(field1='two'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
     with open(infname, 'w') as f:
@@ -487,13 +487,13 @@ def test_copy_copy(tmpdir):
     assert filecmp.cmp(infname, outfname)
     assert os.stat(infname, follow_symlinks=False).st_ino != os.stat(outfname, follow_symlinks=False).st_ino
 
-    fname = filesdb.add(dict(field1="three"), wd=indir)
-    filesdb.add(dict(field1="four"), wd=outdir, filename=fname)
+    fname = filesdb.add(dict(field1='three'), wd=indir)
+    filesdb.add(dict(field1='four'), wd=outdir, filename=fname)
 
     with pytest.raises(RuntimeError):
         filesdb.copy(fname, outdir, wd=indir, copytype='copy')
 
-    fname = filesdb.add(dict(field1="five"), wd=indir)
+    fname = filesdb.add(dict(field1='five'), wd=indir)
     infname = os.path.join(indir, fname)
     outfname = os.path.join(outdir, fname)
     with open(infname, 'w') as f:
@@ -510,14 +510,14 @@ def test_copy_copy_newcol(tmpdir):
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
     os.mkdir(outdir)
-    fname = filesdb.add(dict(field1="one"), wd=indir)
+    fname = filesdb.add(dict(field1='one'), wd=indir)
     infname = os.path.join(indir, fname)
 
     with open(infname, 'w') as f:
         f.write('test')
 
     filesdb.copy(fname, outdir, wd=indir, copytype='copy')
-    filesdb.add(dict(field1="two", field2="three"), wd=indir)
+    filesdb.add(dict(field1='two', field2='three'), wd=indir)
     filesdb.copy(fname, outdir, wd=indir, copytype='hardlink')
 
 
@@ -526,14 +526,14 @@ def test_copy_copy_env(tmpdir):
     os.mkdir(indir)
     outdir = os.path.join(str(tmpdir), 'outdir')
     os.mkdir(outdir)
-    fname = filesdb.add(dict(field1="one"), wd=indir, environment={'git': 100})
+    fname = filesdb.add(dict(field1='one'), wd=indir, environment={'git': 100})
     infname = os.path.join(indir, fname)
 
     with open(infname, 'w') as f:
         f.write('test')
 
     filesdb.copy(fname, outdir, wd=indir)
-    fname = filesdb.add(dict(field1="two", field2="three"), environment={'git': 100}, wd=indir)
+    fname = filesdb.add(dict(field1='two', field2='three'), environment={'git': 100}, wd=indir)
     infname = os.path.join(indir, fname)
     with open(infname, 'w') as f:
         f.write('test')
@@ -541,7 +541,7 @@ def test_copy_copy_env(tmpdir):
     filesdb.copy(fname, outdir, wd=indir)
     assert len(filesdb.search({}, wd=outdir)) == 2
     assert len(filesdb.search_envs({}, wd=outdir)) == 1
-    fname = filesdb.add(dict(field1="two", field2="three"), environment={'git': 200}, wd=indir)
+    fname = filesdb.add(dict(field1='two', field2='three'), environment={'git': 200}, wd=indir)
     infname = os.path.join(indir, fname)
     with open(infname, 'w') as f:
         f.write('test')
@@ -663,7 +663,7 @@ def test_update_cols(tmpdir):
     for table, n in zip(['filelist', 'environments'], [5, 3]):
         with conn:
             _update_columns(conn, table, {'test': 'hi', 'test2': 'hi2'})
-            desc = conn.execute("select * from {}".format(table)).description
+            desc = conn.execute('select * from {}'.format(table)).description
         columns = [d[0] for d in desc]
         assert len(columns) == n
         assert 'test' in columns
@@ -675,7 +675,7 @@ def test_add_env(tmpdir):
     conn = _get_conn(db, str(tmpdir))
     _add_environment({'test': 'hi', 'test2': 'there'}, db=db, wd=str(tmpdir))
     with conn:
-        rows = conn.execute("select * from environments").fetchall()
+        rows = conn.execute('select * from environments').fetchall()
     assert len(rows) == 1
     assert rows[0]['test'] == 'hi'
     assert rows[0]['test2'] == 'there'
@@ -692,14 +692,14 @@ def test_add_file_with_env(tmpdir):
     envhash = rows[0]['envhash']
     conn = _get_conn(db, str(tmpdir))
     with conn:
-        rows = conn.execute("select * from environments").fetchall()
+        rows = conn.execute('select * from environments').fetchall()
     assert len(rows) == 1
     assert rows[0]['eprop'] == 'hi'
     assert rows[0]['eprop2'] == 8
     assert rows[0]['envhash'] == envhash
     filesdb.add({'fprop': 2, 'fprop2': 'two'}, wd=str(tmpdir), db=db, environment={'eprop': 'hi', 'eprop2': 8})
     with conn:
-        rows = conn.execute("select * from environments").fetchall()
+        rows = conn.execute('select * from environments').fetchall()
     assert len(rows) == 1
     assert rows[0]['eprop'] == 'hi'
     assert rows[0]['eprop2'] == 8
