@@ -151,24 +151,24 @@ def test_explicit_e_eq(tmpdir):
 
 def test_make_expression_vals():
     metadata = OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)])
-    assert _make_expression_vals(metadata)[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null'
-    assert _make_expression_vals(OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)]))[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null'
+    assert _make_expression_vals(metadata)[0] == 'filelist."field1"=? and filelist."field2"=? and filelist."field3"=? and filelist."field4" is null'
+    assert _make_expression_vals(OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)]))[0] == 'filelist."field1"=? and filelist."field2"=? and filelist."field3"=? and filelist."field4" is null'
     metadata = OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)])
-    assert _make_expression_vals(metadata)[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null'
-    assert _make_expression_vals(OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)]))[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null'
+    assert _make_expression_vals(metadata)[0] == '(filelist."field1"!=? or filelist."field1" is null) and (filelist."field2"!=? or filelist."field2" is null) and (filelist."field3"!=? or filelist."field3" is null) and filelist."field4" is not null'
+    assert _make_expression_vals(OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)]))[0] == '(filelist."field1"!=? or filelist."field1" is null) and (filelist."field2"!=? or filelist."field2" is null) and (filelist."field3"!=? or filelist."field3" is null) and filelist."field4" is not null'
     metadata = OrderedDict([('field1', 'one'), ('field2', '2'), ('field3', 3), ('field4', None)])
     environments = OrderedDict([('field5', 'one'), ('field6', '2'), ('field7', 3), ('field8', None)])
-    assert _make_expression_vals(metadata, environments)[0] == 'filelist.field1=? and filelist.field2=? and filelist.field3=? and filelist.field4 is null and environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null'
+    assert _make_expression_vals(metadata, environments)[0] == 'filelist."field1"=? and filelist."field2"=? and filelist."field3"=? and filelist."field4" is null and environments."field5"=? and environments."field6"=? and environments."field7"=? and environments."field8" is null'
     metadata = OrderedDict([('field1!', 'one'), ('field2!', '2'), ('field3!', 3), ('field4!', None)])
     environments = OrderedDict([('field5!', 'one'), ('field6!', '2'), ('field7!', 3), ('field8!', None)])
-    assert _make_expression_vals(metadata, environments)[0] == '(filelist.field1!=? or filelist.field1 is null) and (filelist.field2!=? or filelist.field2 is null) and (filelist.field3!=? or filelist.field3 is null) and filelist.field4 is not null and (environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null'
+    assert _make_expression_vals(metadata, environments)[0] == '(filelist."field1"!=? or filelist."field1" is null) and (filelist."field2"!=? or filelist."field2" is null) and (filelist."field3"!=? or filelist."field3" is null) and filelist."field4" is not null and (environments."field5"!=? or environments."field5" is null) and (environments."field6"!=? or environments."field6" is null) and (environments."field7"!=? or environments."field7" is null) and environments."field8" is not null'
 
 
 def test_make_expression_envs_only():
     environments = OrderedDict([('field5', 'one'), ('field6', '2'), ('field7', 3), ('field8', None)])
-    assert _make_expression_vals({}, environments)[0] == 'environments.field5=? and environments.field6=? and environments.field7=? and environments.field8 is null'
+    assert _make_expression_vals({}, environments)[0] == 'environments."field5"=? and environments."field6"=? and environments."field7"=? and environments."field8" is null'
     environments = OrderedDict([('field5!', 'one'), ('field6!', '2'), ('field7!', 3), ('field8!', None)])
-    assert _make_expression_vals({}, environments)[0] == '(environments.field5!=? or environments.field5 is null) and (environments.field6!=? or environments.field6 is null) and (environments.field7!=? or environments.field7 is null) and environments.field8 is not null'
+    assert _make_expression_vals({}, environments)[0] == '(environments."field5"!=? or environments."field5" is null) and (environments."field6"!=? or environments."field6" is null) and (environments."field7"!=? or environments."field7" is null) and environments."field8" is not null'
 
 
 def test_search(tmpdir):
@@ -766,3 +766,11 @@ def test_search_env_only(tmpdir):
     assert len(rows) == 1
     rows = filesdb.search_envs({'eprop2': 9}, wd=str(tmpdir), db=db)
     assert len(rows) == 1
+
+
+def test_quote_fail(tmpdir):
+    with pytest.raises(RuntimeError):
+        filesdb.add({'"field1"': 1}, wd=str(tmpdir))
+    filesdb.add({'field1': 1}, wd=str(tmpdir))
+    with pytest.raises(RuntimeError):
+        filesdb.search({'"field1"': 1}, wd=str(tmpdir))

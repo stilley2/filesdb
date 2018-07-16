@@ -106,11 +106,21 @@ def _update_columns(conn, table, keys, coltype='NUMERIC'):
             raise ValueError('key {} ends in !'.format(key))
         if key not in columns:
             try:
-                conn.execute('alter table {} add {} {}'.format(table, key, coltype))
+                conn.execute('alter table {} add {} {}'.format(table, _quote_single(key), coltype))
             except sqlite3.OperationalError:
                 # column already exists. possible due to race condition between populating
                 # columns variable and adding the new column
                 pass
+
+
+def _quote(keys):
+    return [_quote_single(key) for key in keys]
+
+
+def _quote_single(key):
+    if '"' in key:
+        raise RuntimeError('double quotes in key')
+    return '"{}"'.format(key)
 
 
 def add(metadata, db='files.db', wd='.', filename=None, timeout=10, ext='', prefix='', suffix='', copy_mode=False, environment=None):
@@ -143,7 +153,7 @@ def add(metadata, db='files.db', wd='.', filename=None, timeout=10, ext='', pref
         keys, vals = _key_val_list(metadata)
         if filename is None:
             filename = '{}{}{}{}'.format(prefix, _hash_metadata(metadata, envhash=hash_), suffix, ext)
-        conn.execute('insert into filelist (filename, time, envhash, ' + ', '.join(keys) + ') values (' + ', '.join(['?'] * (len(vals) + 3)) + ')', [filename, currtime, hash_] + vals)
+        conn.execute('insert into filelist (filename, time, envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 3)) + ')', [filename, currtime, hash_] + vals)
     return filename
 
 
@@ -164,7 +174,7 @@ def _add_environment(metadata, db='files.db', wd='.', timeout=10, copy_mode=Fals
         with conn:
             _update_columns(conn, 'environments', metadata.keys())
             keys, vals = _key_val_list(metadata)
-            conn.execute('insert into environments (envhash, ' + ', '.join(keys) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
+            conn.execute('insert into environments (envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
     return hash_
 
 
@@ -185,7 +195,7 @@ def _add_many(metadatalist, tablename='filelist', db='files.db', wd='.', timeout
             for key in keys:
                 tmplist.append(metadata.get(key, None))
             vals.append(tmplist)
-        conn.executemany('insert into {} ('.format(tablename) + ', '.join(keys) + ') values (' + ', '.join(['?'] * len(keys)) + ')', vals)
+        conn.executemany('insert into {} ('.format(tablename) + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * len(keys)) + ')', vals)
 
 
 def _parse_key(key):
@@ -209,12 +219,12 @@ def _make_expression_vals(metadata, environment=None):
             for key in keys:
                 key, op = _parse_key(key)
                 if op in ['!=', '<>']:
-                    search_strs.append('({table}.{key}{op}? or {table}.{key} is null)'.format(table=table, key=key, op=op))
+                    search_strs.append('({table}.{key}{op}? or {table}.{key} is null)'.format(table=table, key=_quote_single(key), op=op))
                 else:
-                    search_strs.append('{table}.{key}{op}?'.format(table=table, key=key, op=op))
+                    search_strs.append('{table}.{key}{op}?'.format(table=table, key=_quote_single(key), op=op))
         if len(null_keys) > 0:
             nullkey_ops = [_parse_key(key) for key in null_keys]
-            search_strs.append(' and '.join(['{table}.{key} {op} null'.format(table=table, key=key, op=_NULL_OP_MAP[op]) for key, op in nullkey_ops]))
+            search_strs.append(' and '.join(['{table}.{key} {op} null'.format(table=table, key=_quote_single(key), op=_NULL_OP_MAP[op]) for key, op in nullkey_ops]))
     expr = ' and '.join(search_strs)
     return expr, vals_out
 
