@@ -73,7 +73,7 @@ def _get_conn(db, wd, timeout=10):
     with conn:
         conn.execute('create table if not exists filelist (filename text primary key not null, time timestamp, envhash text)')
         conn.execute('create table if not exists environments (envhash text primary key not null)')
-        _update_columns(conn, 'filelist', ['envhash'])
+        _update_columns_incontext(conn, 'filelist', ['envhash'])
     return conn
 
 
@@ -98,7 +98,7 @@ def _hash_metadata(metadata, envhash=None):
     return h.hexdigest()
 
 
-def _update_columns(conn, table, keys, coltype='NUMERIC'):
+def _update_columns_incontext(conn, table, keys, coltype='NUMERIC'):
     desc = conn.execute('select * from {}'.format(table)).description
     columns = [d[0] for d in desc]
     for key in keys:
@@ -143,13 +143,13 @@ def add(metadata, db='files.db', wd='.', filename=None, timeout=10, ext='', pref
         for reserved_key in RESERVED_KEYS:
             if reserved_key in metadata.keys():
                 raise ValueError('{} is reserved'.format(reserved_key))
-    if environment is not None and len(environment) > 0:
-        hash_ = _add_environment(environment, db=db, wd=wd, timeout=timeout, copy_mode=copy_mode)
-    else:
-        hash_ = None
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        _update_columns(conn, 'filelist', metadata.keys())
+        if environment is not None and len(environment) > 0:
+            hash_ = _add_environment_incontext(environment, conn, copy_mode=copy_mode)
+        else:
+            hash_ = None
+        _update_columns_incontext(conn, 'filelist', metadata.keys())
         keys, vals = _key_val_list(metadata)
         if filename is None:
             filename = '{}{}{}{}'.format(prefix, _hash_metadata(metadata, envhash=hash_), suffix, ext)
@@ -157,7 +157,7 @@ def add(metadata, db='files.db', wd='.', filename=None, timeout=10, ext='', pref
     return filename
 
 
-def _add_environment(metadata, db='files.db', wd='.', timeout=10, copy_mode=False):
+def _add_environment_incontext(metadata, conn, copy_mode=False):
 
     if copy_mode:
         metadata = metadata.copy()
@@ -168,17 +168,15 @@ def _add_environment(metadata, db='files.db', wd='.', timeout=10, copy_mode=Fals
             raise RuntimeError('passed hash does not match calculated. previous hash may be invalid')
     else:
         hash_ = _hash_metadata(metadata)
-    conn = _get_conn(db, wd, timeout=timeout)
-    existing = len(search_envs({'envhash': hash_}, wd=wd, db=db, timeout=timeout))
+    existing = len(search_envs({'envhash': hash_}, conn))
     if existing == 0:
-        with conn:
-            _update_columns(conn, 'environments', metadata.keys())
-            keys, vals = _key_val_list(metadata)
-            conn.execute('insert into environments (envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
+        _update_columns_incontext(conn, 'environments', metadata.keys())
+        keys, vals = _key_val_list(metadata)
+        conn.execute('insert into environments (envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
     return hash_
 
 
-def _add_many(metadatalist, tablename='filelist', db='files.db', wd='.', timeout=10):
+def _add_many_incontext(metadatalist, conn, tablename='filelist', db='files.db', wd='.', timeout=10):
     if len(metadatalist) == 0:
         return
     keys = set()
@@ -186,16 +184,14 @@ def _add_many(metadatalist, tablename='filelist', db='files.db', wd='.', timeout
         for key in metadata.keys():
             keys.add(key)
     keys = list(keys)
-    conn = _get_conn(db, wd, timeout=timeout)
-    with conn:
-        _update_columns(conn, tablename, keys)
-        vals = []
-        for metadata in metadatalist:
-            tmplist = []
-            for key in keys:
-                tmplist.append(metadata.get(key, None))
-            vals.append(tmplist)
-        conn.executemany('insert into {} ('.format(tablename) + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * len(keys)) + ')', vals)
+    _update_columns_incontext(conn, tablename, keys)
+    vals = []
+    for metadata in metadatalist:
+        tmplist = []
+        for key in keys:
+            tmplist.append(metadata.get(key, None))
+        vals.append(tmplist)
+    conn.executemany('insert into {} ('.format(tablename) + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * len(keys)) + ')', vals)
 
 
 def _parse_key(key):
@@ -229,38 +225,38 @@ def _make_expression_vals(metadata, environment=None):
     return expr, vals_out
 
 
-def search(metadata, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False,
+def search(metadata, conn=None, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False,
            with_environments=False, environment=None):
-    if not os.path.exists(os.path.join(wd, db)):
-        raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
-    conn = _get_conn(db, wd, timeout=timeout)
+    if conn is None:
+        if not os.path.exists(os.path.join(wd, db)):
+            raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
+        conn = _get_conn(db, wd, timeout=timeout)
     basestr = 'select * from filelist'
     if with_environments or environment is not None:
         basestr += ' inner join environments on filelist.envhash = environments.envhash'
-    with conn:
-        if len(metadata) > 0 or environment is not None:
-            expr, vals = _make_expression_vals(metadata, environment)
-            query_string = basestr + ' where ' + expr
-            rows = conn.execute(query_string, vals).fetchall()
-        else:
-            rows = conn.execute(basestr).fetchall()
+    if len(metadata) > 0 or environment is not None:
+        expr, vals = _make_expression_vals(metadata, environment)
+        query_string = basestr + ' where ' + expr
+        rows = conn.execute(query_string, vals).fetchall()
+    else:
+        rows = conn.execute(basestr).fetchall()
     if verbose:
         _print_rows(rows, keys=keys_to_print)
     return RowList(rows)
 
 
-def search_envs(metadata, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False):
-    if not os.path.exists(os.path.join(wd, db)):
-        raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
-    conn = _get_conn(db, wd, timeout=timeout)
+def search_envs(metadata, conn=None, db='files.db', wd='.', timeout=10, verbose=False, keys_to_print=None, parse_exclamation=False):
+    if conn is None:
+        if not os.path.exists(os.path.join(wd, db)):
+            raise FileNotFoundError('{} does not exist in {}'.format(db, wd))
+        conn = _get_conn(db, wd, timeout=timeout)
     basestr = 'select * from environments'
-    with conn:
-        if len(metadata) > 0:
-            expr, vals = _make_expression_vals({}, metadata)
-            query_string = basestr + ' where ' + expr
-            rows = conn.execute(query_string, vals).fetchall()
-        else:
-            rows = conn.execute(basestr).fetchall()
+    if len(metadata) > 0:
+        expr, vals = _make_expression_vals({}, metadata)
+        query_string = basestr + ' where ' + expr
+        rows = conn.execute(query_string, vals).fetchall()
+    else:
+        rows = conn.execute(basestr).fetchall()
     if verbose:
         _print_rows(rows, keys=keys_to_print)
     return RowList(rows)
@@ -275,7 +271,7 @@ def _cmprows(r1, r2):
     return True
 
 
-def merge(indb, outdb, wd='.'):
+def merge(indb, outdb, wd='.', timeout=10):
     rowsin = search({}, db=indb, wd=wd)
     envrowsin = search_envs({}, db=indb, wd=wd)
     rowsout = search({}, db=outdb, wd=wd)
@@ -297,8 +293,10 @@ def merge(indb, outdb, wd='.'):
             if row['envhash'] not in outenvhashes and row['envhash'] not in newenvhashes:
                 newenvhashes.add(row['envhash'])
                 envdatalist.append(dict(envrowsindict[row['envhash']]))
-    _add_many(metadatalist, db=outdb, wd=wd)
-    _add_many(envdatalist, db=outdb, wd=wd, tablename='environments')
+    conn = _get_conn(outdb, wd, timeout=timeout)
+    with conn:
+        _add_many_incontext(metadatalist, conn)
+        _add_many_incontext(envdatalist, conn, tablename='environments')
 
 
 def copy(filename, outdir, db='files.db', wd='.', outdb='files.db', copytype='copy'):
@@ -344,7 +342,7 @@ def delete(metadata, db='files.db', wd='.', timeout=10, dryrun=False, delimiter=
         raise ValueError('must have at least one search parameter')
     conn = _get_conn(db, wd, timeout=timeout)
     with conn:
-        rows = search(metadata, db=db, wd=wd, timeout=timeout)
+        rows = search(metadata, conn)
         if len(rows) > 0:
             if not dryrun:
                 for r in rows:

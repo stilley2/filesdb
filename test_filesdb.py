@@ -12,10 +12,10 @@ from filesdb._filesdb import _make_expression_vals
 from filesdb._filesdb import _hash_metadata
 from filesdb._filesdb import _parse_metadata
 from filesdb._filesdb import _cmprows
-from filesdb._filesdb import _add_many
+from filesdb._filesdb import _add_many_incontext
 from filesdb._filesdb import _get_conn
-from filesdb._filesdb import _update_columns
-from filesdb._filesdb import _add_environment
+from filesdb._filesdb import _update_columns_incontext
+from filesdb._filesdb import _add_environment_incontext
 
 
 def test_file_exists(tmpdir):
@@ -622,9 +622,11 @@ def test_merge(tmpdir):
 
 
 def test_add_many(tmpdir):
-    _add_many([{'filename': 'test1.txt', 'time': 1000, 'param': 3},
-               {'filename': 'test2.txt', 'time': 1000, 'param': 4}],
-              wd=str(tmpdir))
+    conn = _get_conn('files.db', str(tmpdir))
+    with conn:
+        _add_many_incontext([{'filename': 'test1.txt', 'time': 1000, 'param': 3},
+                             {'filename': 'test2.txt', 'time': 1000, 'param': 4}],
+                            conn)
 
     rows = filesdb.search({}, wd=str(tmpdir))
     assert rows[0]['filename'] == 'test1.txt'
@@ -633,14 +635,17 @@ def test_add_many(tmpdir):
     assert rows[1]['filename'] == 'test2.txt'
     assert rows[1]['time'] == 1000
     assert rows[1]['param'] == 4
-    _add_many([], wd=str(tmpdir))
+    with conn:
+        _add_many_incontext([], conn)
 
 
 def test_add_many_env(tmpdir):
-    _add_many([{'envhash': 1000, 'param2': 'test1.txt', 'param3': 1000, 'param': 3},
-               {'envhash': 1001, 'param2': 'test2.txt', 'param3': 1000, 'param': 4}],
-              wd=str(tmpdir),
-              tablename='environments')
+    conn = _get_conn('files.db', str(tmpdir))
+    with conn:
+        _add_many_incontext([{'envhash': 1000, 'param2': 'test1.txt', 'param3': 1000, 'param': 3},
+                             {'envhash': 1001, 'param2': 'test2.txt', 'param3': 1000, 'param': 4}],
+                            conn,
+                            tablename='environments')
 
     rows = filesdb.search_envs({}, wd=str(tmpdir))
     assert rows[0]['param2'] == 'test1.txt'
@@ -649,7 +654,8 @@ def test_add_many_env(tmpdir):
     assert rows[1]['param2'] == 'test2.txt'
     assert rows[1]['param3'] == 1000
     assert rows[1]['param'] == 4
-    _add_many([], wd=str(tmpdir))
+    with conn:
+        _add_many_incontext([], conn)
 
 
 def test_bad_key(tmpdir):
@@ -662,7 +668,7 @@ def test_update_cols(tmpdir):
     conn = _get_conn(db, str(tmpdir))
     for table, n in zip(['filelist', 'environments'], [5, 3]):
         with conn:
-            _update_columns(conn, table, {'test': 'hi', 'test2': 'hi2'})
+            _update_columns_incontext(conn, table, {'test': 'hi', 'test2': 'hi2'})
             desc = conn.execute('select * from {}'.format(table)).description
         columns = [d[0] for d in desc]
         assert len(columns) == n
@@ -673,9 +679,9 @@ def test_update_cols(tmpdir):
 def test_add_env(tmpdir):
     db = 'files.db'
     conn = _get_conn(db, str(tmpdir))
-    _add_environment({'test': 'hi', 'test2': 'there'}, db=db, wd=str(tmpdir))
     with conn:
-        rows = conn.execute('select * from environments').fetchall()
+        _add_environment_incontext({'test': 'hi', 'test2': 'there'}, conn)
+    rows = conn.execute('select * from environments').fetchall()
     assert len(rows) == 1
     assert rows[0]['test'] == 'hi'
     assert rows[0]['test2'] == 'there'
