@@ -172,7 +172,12 @@ def _add_environment_incontext(metadata, conn, copy_mode=False):
     if existing == 0:
         _update_columns_incontext(conn, 'environments', metadata.keys())
         keys, vals = _key_val_list(metadata)
-        conn.execute('insert into environments (envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
+        try:
+            conn.execute('insert into environments (envhash, ' + ', '.join(_quote(keys)) + ') values (' + ', '.join(['?'] * (len(vals) + 1)) + ')', [hash_] + vals)
+        except sqlite3.IntegrityError:
+            # envhash already exists. possible due to race condition between checking
+            # envhash values
+            pass
     return hash_
 
 
